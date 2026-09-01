@@ -1,37 +1,70 @@
 @import 'tailwindcss';
 
-:root {
-  font-family: Inter, 'Segoe UI', sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  color: #0f172a;
-  background: #f8fafc;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@layer base {
+  :root {
+    font-family: Inter, 'Segoe UI', sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+    color: #0f172a;
+    background-color: #f8fafc;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color-scheme: light;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    min-width: 320px;
+    min-height: 100%;
+    min-height: 100vh;
+  }
+
+  body {
+    margin: 0;
+    background: #f8fafc;
+    color: #0f172a;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  ::selection {
+    background: rgba(14, 165, 233, 0.18);
+  }
 }
 
-* {
-  box-sizing: border-box;
-}
+@layer components {
+  .panel-surface {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+  }
 
-html, body, #root {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100%;
-  min-height: 100vh;
-}
+  .field-input {
+    @apply w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-slate-900 placeholder:text-slate-400 transition duration-200 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-sky-100; 
+  }
 
-body {
-  margin: 0;
-}
+  .action-button-primary {
+    @apply inline-flex items-center justify-center rounded-xl bg-sky-600 px-4 py-2.5 font-semibold text-white shadow-sm transition duration-200 hover:bg-sky-500 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:bg-sky-300;
+  }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
+  .action-button-secondary {
+    @apply inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition duration-200 hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-200;
+  }
 
-button, input {
-  font: inherit;
+  .section-label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500;
+  }
 }
