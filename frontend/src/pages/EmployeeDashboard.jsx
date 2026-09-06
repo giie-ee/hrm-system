@@ -2,9 +2,22 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import apiClient from '../api/client'
 
+function readStoredUser() {
+  const storedUser = localStorage.getItem('hrms_user')
+
+  if (!storedUser) return null
+
+  try {
+    return JSON.parse(storedUser)
+  } catch {
+    localStorage.removeItem('hrms_user')
+    return null
+  }
+}
+
 function EmployeeDashboard() {
   const navigate = useNavigate()
-  const [user, setUser] = useState(null)
+  const [user] = useState(readStoredUser)
   const [sessionStatus, setSessionStatus] = useState({
     loading: true,
     ok: false,
@@ -12,21 +25,15 @@ function EmployeeDashboard() {
   })
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('hrms_user')
-
-    if (!storedUser) {
+    if (!user) {
       navigate('/login', { replace: true })
       return
     }
 
-    try {
-      const parsedUser = JSON.parse(storedUser)
-      setUser(parsedUser)
-    } catch {
-      localStorage.removeItem('hrms_user')
-      navigate('/login', { replace: true })
+    if (user.role_name !== 'Employee') {
+      navigate('/dashboard', { replace: true })
     }
-  }, [navigate])
+  }, [navigate, user])
 
   useEffect(() => {
     if (!user) return
@@ -63,6 +70,18 @@ function EmployeeDashboard() {
       tone: 'sky',
     },
     {
+      title: 'Payroll',
+      description: 'Create and process a payroll record through the existing PHP workflow.',
+      to: '/payroll',
+      tone: 'amber',
+    },
+    {
+      title: 'Documents',
+      description: 'Open the documents workspace and backend availability status.',
+      to: '/documents',
+      tone: 'emerald',
+    },
+    {
       title: user.role_name === 'Admin' ? 'Admin Access Check' : 'Employee Access Check',
       description: 'Validate the current authenticated session.',
       href: user.role_name === 'Admin' ? 'http://localhost:8000/api/test-admin.php' : 'http://localhost:8000/api/test-employee.php',
@@ -74,6 +93,7 @@ function EmployeeDashboard() {
 
   const quickLinkStyles = {
     sky: 'border-sky-200 bg-sky-50 text-sky-700',
+    amber: 'border-amber-200 bg-amber-50 text-amber-700',
     emerald: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   }
 
@@ -177,13 +197,13 @@ function EmployeeDashboard() {
             <h2 className="text-lg font-bold text-slate-900">Quick links</h2>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {quickLinks.map((link) =>
               link.to ? (
                 <Link
                   key={link.title}
                   to={link.to}
-                  className="panel-surface block p-5 transition duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-md"
+                  className={`panel-surface block p-5 transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${link.tone === 'amber' ? 'hover:border-amber-300' : link.tone === 'emerald' ? 'hover:border-emerald-300' : 'hover:border-sky-300'}`}
                 >
                   <div className={`mb-3 inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${quickLinkStyles[link.tone]}`}>
                     Available

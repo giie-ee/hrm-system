@@ -35,7 +35,7 @@ function EmployeeDirectory() {
 
           <div className="panel-surface p-5">
             <p className="section-label">Status</p>
-            <p className="mt-2 text-lg font-bold text-amber-600">HTML listing available</p>
+            <p className="mt-2 text-lg font-bold text-amber-600">JSON data unavailable</p>
           </div>
 
           <div className="panel-surface p-5">
@@ -49,25 +49,37 @@ function EmployeeDirectory() {
             <div>
               <h2 className="text-lg font-bold text-slate-900">Employee search and filters</h2>
               <p className="mt-1 text-sm text-slate-600">
-                Search and filter controls are ready for the real employee API, but the current backend exposes the employee list as an HTML page only.
+                Search and filtering will become available when the backend exposes the employee records as JSON.
               </p>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <input
-                type="text"
-                disabled
-                placeholder="Search employees"
-                className="field-input w-full cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500 placeholder:text-slate-400 sm:w-64"
-              />
-              <select
-                disabled
-                className="field-input w-full cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500 sm:w-48"
-              >
-                <option>All status</option>
-              </select>
-            </div>
+            <fieldset disabled className="flex flex-col gap-3 sm:flex-row">
+              <legend className="sr-only">Employee search and filter controls</legend>
+              <div>
+                <label htmlFor="employee-search" className="sr-only">Search by employee ID, number, or name</label>
+                <input
+                  id="employee-search"
+                  type="search"
+                  placeholder="Search employees"
+                  aria-describedby="employee-filter-status"
+                  className="field-input w-full cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500 placeholder:text-slate-400 sm:w-64"
+                />
+              </div>
+              <div>
+                <label htmlFor="employment-status" className="sr-only">Filter by employment status</label>
+                <select
+                  id="employment-status"
+                  aria-describedby="employee-filter-status"
+                  className="field-input w-full cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500 sm:w-48"
+                >
+                  <option>All statuses</option>
+                </select>
+              </div>
+            </fieldset>
           </div>
+          <p id="employee-filter-status" role="status" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Filters are unavailable until Kay&apos;s JSON employee endpoint is added. The current PHP source returns an HTML page only.
+          </p>
         </section>
 
         <section className="panel-surface p-5 sm:p-6">
@@ -81,7 +93,7 @@ function EmployeeDirectory() {
           <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
             <p className="text-base font-semibold text-slate-800">Real employee records are not exposed as JSON yet.</p>
             <p className="mt-2 text-sm text-slate-600">
-              The current available backend data is the HTML employee listing page at{' '}
+              The current backend data source is the HTML employee listing page at{' '}
               <a href="http://localhost:8000/employees/list.php" target="_blank" rel="noreferrer" className="font-medium text-sky-600 underline underline-offset-2">
                 http://localhost:8000/employees/list.php
               </a>
