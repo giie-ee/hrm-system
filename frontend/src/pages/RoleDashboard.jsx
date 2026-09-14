@@ -30,6 +30,13 @@ const roleDashboardContent = {
         availability: 'Available',
       },
       {
+        title: 'Leave and Attendance',
+        description: 'Review leave requests, balances, and attendance records.',
+        href: '/leave',
+        internal: true,
+        availability: 'Available',
+      },
+      {
         title: 'Documents',
         description: 'Open the documents workspace. Document data is waiting on a backend API.',
         href: '/documents',
@@ -57,9 +64,23 @@ const roleDashboardContent = {
         availability: 'Backend dependency',
       },
       {
-        title: 'Payroll and leave',
-        description: 'Payroll is available through the shared workflow. Leave still depends on a backend module.',
+        title: 'Payroll',
+        description: 'Create, calculate, and process payroll through the existing authenticated PHP workflow.',
         href: '/payroll',
+        internal: true,
+        availability: 'Available',
+      },
+      {
+        title: 'Leave',
+        description: 'Review leave requests, balances, and approvals.',
+        href: '/leave',
+        internal: true,
+        availability: 'Available',
+      },
+      {
+        title: 'Attendance',
+        description: 'Review attendance records and supported daily actions.',
+        href: '/attendance',
         internal: true,
         availability: 'Available',
       },
@@ -92,8 +113,10 @@ const roleDashboardContent = {
       },
       {
         title: 'Leave and attendance',
-        description: 'Manager approval and team attendance workflows are not available in the current backend surface.',
-        availability: 'Backend dependency',
+        description: 'Review leave requests and team attendance records.',
+        href: '/leave',
+        internal: true,
+        availability: 'Available',
       },
       {
         title: 'Payroll',
@@ -108,6 +131,13 @@ const roleDashboardContent = {
         href: '/documents',
         internal: true,
         availability: 'Frontend shell',
+      },
+      {
+        title: 'Attendance',
+        description: 'Review attendance records for the team.',
+        href: '/attendance',
+        internal: true,
+        availability: 'Available',
       },
     ],
   },
@@ -146,6 +176,18 @@ function RoleDashboard() {
 
     return { loading: true, ok: false, message: '' }
   })
+
+  const handleSignOut = async () => {
+    try {
+      await apiClient.post('/api/auth/logout.php')
+    } catch {
+      return
+    } finally {
+      localStorage.removeItem('hrms_user')
+      localStorage.removeItem('hrms_token')
+      navigate('/login', { replace: true })
+    }
+  }
 
   useEffect(() => {
     if (!user) {
@@ -218,10 +260,7 @@ function RoleDashboard() {
               </span>
               <button
                 type="button"
-                onClick={() => {
-                  localStorage.removeItem('hrms_user')
-                  navigate('/login', { replace: true })
-                }}
+                onClick={handleSignOut}
                 className="action-button-secondary"
               >
                 Sign out

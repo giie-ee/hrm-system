@@ -1,11 +1,27 @@
 <?php
 
+require_once "../../includes/cors.php";
+
 header("Content-Type: application/json");
 
 require_once "../../config/database.php";
 require_once "../../includes/auth.php";
 
 requireLogin();
+
+$user_role = $_SESSION["role_name"] ?? "";
+
+if (!in_array($user_role, ["Admin", "HR", "Manager"], true)) {
+
+    http_response_code(403);
+
+    echo json_encode([
+        "success" => false,
+        "message" => "Access denied."
+    ]);
+
+    exit;
+}
 
 
 /*

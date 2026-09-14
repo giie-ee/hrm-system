@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import apiClient from '../api/client'
 
@@ -28,10 +28,46 @@ function PayrollPage() {
   const [payrollForm, setPayrollForm] = useState(initialPayrollForm)
   const [itemForm, setItemForm] = useState(initialItemForm)
   const [payroll, setPayroll] = useState(null)
+  const [payrollRecords, setPayrollRecords] = useState([])
+  const [payrollRecordsLoading, setPayrollRecordsLoading] = useState(true)
+  const [payrollRecordsError, setPayrollRecordsError] = useState('')
   const [items, setItems] = useState([])
   const [loadingAction, setLoadingAction] = useState('')
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+
+  useEffect(() => {
+    let isActive = true
+
+    const loadPayrollRecords = async () => {
+      setPayrollRecordsLoading(true)
+      setPayrollRecordsError('')
+
+      try {
+        const response = await apiClient.get('/api/payroll/get.php')
+        const records = response.data.data || []
+
+        if (!isActive) return
+
+        setPayrollRecords(records)
+        setPayroll((currentPayroll) => currentPayroll || records[0] || null)
+      } catch (requestError) {
+        if (!isActive) return
+
+        setPayrollRecordsError(getErrorMessage(requestError, 'Existing payroll records could not be loaded.'))
+      } finally {
+        if (isActive) {
+          setPayrollRecordsLoading(false)
+        }
+      }
+    }
+
+    loadPayrollRecords()
+
+    return () => {
+      isActive = false
+    }
+  }, [])
 
   const handlePayrollChange = (event) => {
     const { name, value } = event.target
@@ -66,6 +102,7 @@ function PayrollPage() {
       async () => {
         const response = await apiClient.post('/api/payroll/create.php', payrollForm)
         setPayroll(response.data)
+        setPayrollRecords((records) => [response.data, ...records])
         setItems([])
         setItemForm(initialItemForm)
       },
@@ -140,6 +177,18 @@ function PayrollPage() {
 
   const isBusy = Boolean(loadingAction)
   const isProcessed = payroll?.payroll_status === 'Processed'
+  const isEmployee = JSON.parse(localStorage.getItem('hrms_user') || 'null')?.role_name === 'Employee'
+
+  const handlePayrollSelect = (event) => {
+    const selectedPayroll = payrollRecords.find(
+      (record) => String(record.payroll_id) === event.target.value,
+    )
+
+    setPayroll(selectedPayroll || null)
+    setItems([])
+    setError('')
+    setSuccessMessage('')
+  }
 
   return (
     <main className="min-h-screen bg-slate-100 p-4 sm:p-6 lg:p-8">
@@ -171,6 +220,77 @@ function PayrollPage() {
           </div>
         )}
 
+        <section className="panel-surface mb-6 p-5 sm:p-6">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="section-label">Existing records</p>
+              <h2 className="mt-2 text-lg font-bold text-slate-900">Payroll history</h2>
+              <p className="mt-1 text-sm text-slate-600">Select a payroll record to view its summary and work with its items.</p>
+            </div>
+            <label className="w-full sm:max-w-sm">
+              <span className="mb-2 block text-sm font-medium text-slate-700">Payroll record</span>
+              <select
+                value={payroll?.payroll_id || ''}
+                onChange={handlePayrollSelect}
+                disabled={payrollRecordsLoading || payrollRecords.length === 0 || isBusy}
+                className="field-input"
+              >
+                <option value="">
+                  {payrollRecordsLoading ? 'Loading payroll records...' : payrollRecords.length === 0 ? 'No payroll records found' : 'Select a payroll record'}
+                </option>
+                {payrollRecords.map((record) => (
+                  <option key={record.payroll_id} value={record.payroll_id}>
+                    #{record.payroll_id} · {record.employee_name || `Employee ${record.employee_id}`} · {record.payroll_status}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {payrollRecordsLoading && (
+            <p className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700">Loading existing payroll records...</p>
+          )}
+
+          {!payrollRecordsLoading && payrollRecordsError && (
+            <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{payrollRecordsError}</p>
+          )}
+
+          {!payrollRecordsLoading && !payrollRecordsError && payrollRecords.length === 0 && (
+            <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">No payroll records are available.</p>
+          )}
+
+          {!payrollRecordsLoading && !payrollRecordsError && payrollRecords.length > 0 && (
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="min-w-full text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Payroll</th>
+                    <th className="px-4 py-3 font-semibold">Employee</th>
+                    <th className="px-4 py-3 font-semibold">Period</th>
+                    <th className="px-4 py-3 font-semibold">Status</th>
+                    <th className="px-4 py-3 font-semibold">Net salary</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {payrollRecords.map((record) => (
+                    <tr
+                      key={record.payroll_id}
+                      className={`cursor-pointer ${record.payroll_id === payroll?.payroll_id ? 'bg-sky-50' : 'bg-white hover:bg-slate-50'}`}
+                      onClick={() => handlePayrollSelect({ target: { value: String(record.payroll_id) } })}
+                    >
+                      <td className="px-4 py-3 font-medium text-slate-900">#{record.payroll_id}</td>
+                      <td className="px-4 py-3 text-slate-700">{record.employee_name || `Employee ${record.employee_id}`}</td>
+                      <td className="px-4 py-3 text-slate-700">{record.pay_period_start} to {record.pay_period_end}</td>
+                      <td className="px-4 py-3 text-slate-700">{record.payroll_status}</td>
+                      <td className="px-4 py-3 text-slate-700">{formatAmount(record.net_salary)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
         <section className="mb-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="panel-surface p-5 sm:p-6">
             <div className="mb-5">
@@ -179,6 +299,9 @@ function PayrollPage() {
               <p className="mt-1 text-sm text-slate-600">The backend looks up the employee&apos;s active salary.</p>
             </div>
 
+            {isEmployee ? (
+              <p className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-700">Your payroll records are view-only.</p>
+            ) : (
             <form onSubmit={createPayroll} className="grid gap-4 sm:grid-cols-2">
               <label className="sm:col-span-2">
                 <span className="mb-2 block text-sm font-medium text-slate-700">Employee ID</span>
@@ -205,6 +328,7 @@ function PayrollPage() {
                 {loadingAction === 'create' ? 'Creating draft...' : 'Create Draft Payroll'}
               </button>
             </form>
+            )}
           </div>
 
           <div className="panel-surface p-5 sm:p-6">
@@ -249,7 +373,7 @@ function PayrollPage() {
             </button>
           </div>
 
-          <form onSubmit={addItem} className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr_0.8fr_1.5fr_auto] lg:items-end">
+          {!isEmployee && <form onSubmit={addItem} className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr_0.8fr_1.5fr_auto] lg:items-end">
             <label>
               <span className="mb-2 block text-sm font-medium text-slate-700">Type</span>
               <select name="item_type" value={itemForm.item_type} onChange={handleItemChange} disabled={!payroll || isProcessed || isBusy} className="field-input">
@@ -272,7 +396,7 @@ function PayrollPage() {
             <button type="submit" disabled={!payroll || isProcessed || isBusy} className="action-button-primary">
               {loadingAction === 'add-item' ? 'Adding...' : 'Add Item'}
             </button>
-          </form>
+          </form>}
 
           <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200">
             <table className="min-w-full text-left text-sm">
@@ -308,14 +432,14 @@ function PayrollPage() {
             <h2 className="mt-2 text-lg font-bold text-slate-900">Calculate and Process</h2>
             <p className="mt-1 text-sm text-slate-600">Calculation updates the totals. Processing changes a Draft to Processed.</p>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
+          {!isEmployee && <div className="flex flex-col gap-3 sm:flex-row">
             <button type="button" disabled={!payroll || isProcessed || isBusy} onClick={calculatePayroll} className="action-button-primary">
               {loadingAction === 'calculate' ? 'Calculating...' : 'Calculate Payroll'}
             </button>
             <button type="button" disabled={!payroll || isProcessed || isBusy} onClick={processPayroll} className="action-button-secondary">
               {loadingAction === 'process' ? 'Processing...' : 'Process Payroll'}
             </button>
-          </div>
+          </div>}
         </section>
       </div>
     </main>

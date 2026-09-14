@@ -9,6 +9,41 @@ require_once "../../includes/auth.php";
 
 requireLogin();
 
+$user_role = $_SESSION["role_name"] ?? "";
+$session_employee_id = null;
+
+if ($user_role === "Employee") {
+
+    $session_employee_id = $_SESSION["employee_id"] ?? null;
+
+    if (
+        $session_employee_id === null ||
+        !filter_var($session_employee_id, FILTER_VALIDATE_INT) ||
+        (int)$session_employee_id <= 0
+    ) {
+        http_response_code(401);
+
+        echo json_encode([
+            "success" => false,
+            "message" => "Authenticated employee information is unavailable."
+        ]);
+
+        exit;
+    }
+
+    $session_employee_id = (int)$session_employee_id;
+} elseif (!in_array($user_role, ["Admin", "HR", "Manager"], true)) {
+
+    http_response_code(403);
+
+    echo json_encode([
+        "success" => false,
+        "message" => "Access denied."
+    ]);
+
+    exit;
+}
+
 if ($_SERVER["REQUEST_METHOD"] !== "GET") {
 
     http_response_code(405);
@@ -42,7 +77,7 @@ try {
      */
 
     $check_sql = "
-        SELECT payroll_id
+        SELECT payroll_id, employee_id
         FROM payroll
         WHERE payroll_id = ?
         LIMIT 1
@@ -61,6 +96,22 @@ try {
         echo json_encode([
             "success" => false,
             "message" => "Payroll record not found."
+        ]);
+
+        exit;
+    }
+
+    $payroll = $check_result->fetch_assoc();
+
+    if (
+        $user_role === "Employee" &&
+        (int)$payroll["employee_id"] !== $session_employee_id
+    ) {
+        http_response_code(403);
+
+        echo json_encode([
+            "success" => false,
+            "message" => "Access denied."
         ]);
 
         exit;

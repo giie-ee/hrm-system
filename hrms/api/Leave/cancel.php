@@ -1,5 +1,7 @@
 <?php
 
+require_once "../../includes/cors.php";
+
 require_once "../../config/database.php";
 require_once "../../includes/auth.php";
 
@@ -43,6 +45,36 @@ if (
 }
 
 $leave_request_id = (int)$leave_request_id;
+$user_role = $_SESSION["role_name"] ?? "";
+$session_employee_id = null;
+
+if ($user_role === "Employee") {
+
+    $session_employee_id = $_SESSION["employee_id"] ?? null;
+
+    if (
+        $session_employee_id === null ||
+        !filter_var($session_employee_id, FILTER_VALIDATE_INT) ||
+        (int)$session_employee_id <= 0
+    ) {
+        http_response_code(401);
+        echo json_encode([
+            "success" => false,
+            "message" => "Authenticated employee information is unavailable."
+        ]);
+        exit;
+    }
+
+    $session_employee_id = (int)$session_employee_id;
+} elseif (!in_array($user_role, ["Admin", "HR", "Manager"], true)) {
+
+    http_response_code(403);
+    echo json_encode([
+        "success" => false,
+        "message" => "Access denied."
+    ]);
+    exit;
+}
 
 $conn->begin_transaction();
 
@@ -98,6 +130,20 @@ try {
             "success" => false,
             "message" => "Only Pending leave requests can be cancelled.",
             "current_status" => $request["status"]
+        ]);
+        exit;
+    }
+
+    if (
+        $user_role === "Employee" &&
+        (int)$request["employee_id"] !== $session_employee_id
+    ) {
+        $conn->rollback();
+
+        http_response_code(403);
+        echo json_encode([
+            "success" => false,
+            "message" => "Employees may only cancel their own leave requests."
         ]);
         exit;
     }

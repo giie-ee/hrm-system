@@ -1,5 +1,7 @@
 <?php
 
+require_once "../../includes/cors.php";
+
 header("Content-Type: application/json");
 
 require_once "../../config/database.php";
@@ -47,9 +49,10 @@ if (!is_array($data)) {
 
 
 /*
- * Required fields.
+ * The authenticated session determines which employee is requesting leave.
+ * Any employee_id supplied by the client is intentionally ignored.
  */
-$employee_id = $data["employee_id"] ?? null;
+$employee_id = $_SESSION["employee_id"] ?? null;
 $leave_type_id = $data["leave_type_id"] ?? null;
 $start_date = $data["start_date"] ?? null;
 $end_date = $data["end_date"] ?? null;
@@ -57,7 +60,7 @@ $reason = $data["reason"] ?? null;
 
 
 /*
- * Validate employee ID.
+ * Validate the authenticated employee ID.
  */
 if (
     $employee_id === null ||
@@ -69,7 +72,7 @@ if (
 
     echo json_encode([
         "success" => false,
-        "message" => "A valid employee ID is required."
+        "message" => "Authenticated employee information is unavailable."
     ]);
 
     exit;

@@ -1,11 +1,52 @@
 <?php
 
+require_once "../../includes/cors.php";
+
 header("Content-Type: application/json");
 
 require_once "../../config/database.php";
 require_once "../../includes/auth.php";
 
 requireLogin();
+
+$user_role = $_SESSION["role_name"] ?? "";
+
+if ($user_role === "Employee") {
+
+    $session_employee_id = $_SESSION["employee_id"] ?? null;
+
+    if (
+        $session_employee_id === null ||
+        !filter_var($session_employee_id, FILTER_VALIDATE_INT) ||
+        (int)$session_employee_id <= 0
+    ) {
+        http_response_code(401);
+
+        echo json_encode([
+            "success" => false,
+            "message" => "Authenticated employee information is unavailable."
+        ]);
+
+        exit;
+    }
+
+} elseif (!in_array($user_role, ["Admin", "HR", "Manager"], true)) {
+
+    http_response_code(403);
+
+    echo json_encode([
+        "success" => false,
+        "message" => "Access denied."
+    ]);
+
+    exit;
+}
+
+$employee_id = $_GET["employee_id"] ?? null;
+
+if ($user_role === "Employee") {
+    $employee_id = (int)$session_employee_id;
+}
 
 
 /*
@@ -36,7 +77,6 @@ if ($_SERVER["REQUEST_METHOD"] !== "GET") {
  * status:
  *     /get.php?status=Present
  */
-$employee_id = $_GET["employee_id"] ?? null;
 $date = $_GET["date"] ?? null;
 $status = $_GET["status"] ?? null;
 

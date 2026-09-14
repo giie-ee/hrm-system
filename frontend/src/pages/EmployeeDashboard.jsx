@@ -24,6 +24,18 @@ function EmployeeDashboard() {
     message: '',
   })
 
+  const handleSignOut = async () => {
+    try {
+      await apiClient.post('/api/auth/logout.php')
+    } catch {
+      return
+    } finally {
+      localStorage.removeItem('hrms_user')
+      localStorage.removeItem('hrms_token')
+      navigate('/login', { replace: true })
+    }
+  }
+
   useEffect(() => {
     if (!user) {
       navigate('/login', { replace: true })
@@ -82,6 +94,18 @@ function EmployeeDashboard() {
       tone: 'emerald',
     },
     {
+      title: 'Leave',
+      description: 'Submit and review your leave requests and balances.',
+      to: '/leave',
+      tone: 'sky',
+    },
+    {
+      title: 'Attendance',
+      description: 'Review your attendance and use daily check-in controls.',
+      to: '/attendance',
+      tone: 'emerald',
+    },
+    {
       title: user.role_name === 'Admin' ? 'Admin Access Check' : 'Employee Access Check',
       description: 'Validate the current authenticated session.',
       href: user.role_name === 'Admin' ? 'http://localhost:8000/api/test-admin.php' : 'http://localhost:8000/api/test-employee.php',
@@ -113,10 +137,7 @@ function EmployeeDashboard() {
               </span>
               <button
                 type="button"
-                onClick={() => {
-                  localStorage.removeItem('hrms_user')
-                  navigate('/login', { replace: true })
-                }}
+                onClick={handleSignOut}
                 className="action-button-secondary"
               >
                 Sign out
@@ -248,7 +269,7 @@ function EmployeeDashboard() {
           <div className="panel-surface p-5">
             <h3 className="text-base font-semibold text-slate-900">Leave & Attendance</h3>
             <p className="mt-3 text-sm text-slate-600">
-              This section is ready for future integration once those HRMS modules are implemented on the backend and frontend.
+              Leave and attendance workflows are connected to the authenticated backend APIs.
             </p>
           </div>
         </section>

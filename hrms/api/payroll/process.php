@@ -39,6 +39,18 @@ if (!isset($_SESSION["user_id"])) {
     exit;
 }
 
+$user_role = $_SESSION["role_name"] ?? "";
+
+if (!in_array($user_role, ["Admin", "HR"], true)) {
+
+    http_response_code(403);
+
+    $response["message"] = "Access denied.";
+
+    echo json_encode($response);
+    exit;
+}
+
 /*
  * Read JSON request.
  */
