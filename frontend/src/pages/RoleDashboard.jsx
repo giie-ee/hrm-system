@@ -43,6 +43,13 @@ const roleDashboardContent = {
         internal: true,
         availability: 'Frontend shell',
       },
+      {
+        title: 'Onboarding Forms',
+        description: 'Open the onboarding workspace. Save and review actions are waiting on a backend API.',
+        href: '/onboarding',
+        internal: true,
+        availability: 'Frontend shell',
+      },
     ],
   },
   HR: {
@@ -91,6 +98,13 @@ const roleDashboardContent = {
         internal: true,
         availability: 'Frontend shell',
       },
+      {
+        title: 'Onboarding Forms',
+        description: 'Open the onboarding workspace. Review workflows are waiting on a backend API.',
+        href: '/onboarding',
+        internal: true,
+        availability: 'Frontend shell',
+      },
     ],
   },
   Manager: {
@@ -129,6 +143,13 @@ const roleDashboardContent = {
         title: 'Documents',
         description: 'Open the documents workspace. Document data is waiting on a backend API.',
         href: '/documents',
+        internal: true,
+        availability: 'Frontend shell',
+      },
+      {
+        title: 'Onboarding Forms',
+        description: 'Open the onboarding workspace. Review workflows are waiting on a backend API.',
+        href: '/onboarding',
         internal: true,
         availability: 'Frontend shell',
       },

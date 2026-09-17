@@ -94,6 +94,12 @@ function EmployeeDashboard() {
       tone: 'emerald',
     },
     {
+      title: 'Onboarding Forms',
+      description: 'Complete your onboarding information and review required fields.',
+      to: '/onboarding',
+      tone: 'sky',
+    },
+    {
       title: 'Leave',
       description: 'Submit and review your leave requests and balances.',
       to: '/leave',

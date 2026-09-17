@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import EmployeeDashboard from '../pages/EmployeeDashboard'
 import EmployeeDirectory from '../pages/EmployeeDirectory'
 import DocumentsPage from '../pages/DocumentsPage'
+import OnboardingPage from '../pages/OnboardingPage'
 import AttendancePage from '../pages/AttendancePage'
 import LeavePage from '../pages/LeavePage'
 import LoginPage from '../pages/LoginPage'
@@ -38,6 +39,7 @@ function AppRouter() {
       <Route path="/dashboard/employee" element={<ProtectedRoute><EmployeeDashboard /></ProtectedRoute>} />
       <Route path="/employees" element={<ProtectedRoute><EmployeeDirectory /></ProtectedRoute>} />
       <Route path="/documents" element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />
+      <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
       <Route path="/leave" element={<ProtectedRoute><LeavePage /></ProtectedRoute>} />
       <Route path="/attendance" element={<ProtectedRoute><AttendancePage /></ProtectedRoute>} />
       <Route path="/payroll" element={<ProtectedRoute><PayrollPage /></ProtectedRoute>} />
