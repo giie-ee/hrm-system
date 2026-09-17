@@ -100,6 +100,12 @@ function EmployeeDashboard() {
       tone: 'sky',
     },
     {
+      title: 'Progress Tracker',
+      description: 'View your onboarding and employee lifecycle progress.',
+      to: '/progress-tracker',
+      tone: 'emerald',
+    },
+    {
       title: 'Leave',
       description: 'Submit and review your leave requests and balances.',
       to: '/leave',

@@ -3,6 +3,7 @@ import EmployeeDashboard from '../pages/EmployeeDashboard'
 import EmployeeDirectory from '../pages/EmployeeDirectory'
 import DocumentsPage from '../pages/DocumentsPage'
 import OnboardingPage from '../pages/OnboardingPage'
+import ProgressTrackerPage from '../pages/ProgressTrackerPage'
 import AttendancePage from '../pages/AttendancePage'
 import LeavePage from '../pages/LeavePage'
 import LoginPage from '../pages/LoginPage'
@@ -40,6 +41,7 @@ function AppRouter() {
       <Route path="/employees" element={<ProtectedRoute><EmployeeDirectory /></ProtectedRoute>} />
       <Route path="/documents" element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />
       <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
+      <Route path="/progress-tracker" element={<ProtectedRoute><ProgressTrackerPage /></ProtectedRoute>} />
       <Route path="/leave" element={<ProtectedRoute><LeavePage /></ProtectedRoute>} />
       <Route path="/attendance" element={<ProtectedRoute><AttendancePage /></ProtectedRoute>} />
       <Route path="/payroll" element={<ProtectedRoute><PayrollPage /></ProtectedRoute>} />

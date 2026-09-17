@@ -50,6 +50,13 @@ const roleDashboardContent = {
         internal: true,
         availability: 'Frontend shell',
       },
+      {
+        title: 'Progress Tracker',
+        description: 'Open the lifecycle progress workspace. Progress records are waiting on a backend API.',
+        href: '/progress-tracker',
+        internal: true,
+        availability: 'Frontend shell',
+      },
     ],
   },
   HR: {
@@ -105,6 +112,13 @@ const roleDashboardContent = {
         internal: true,
         availability: 'Frontend shell',
       },
+      {
+        title: 'Progress Tracker',
+        description: 'Open the lifecycle progress workspace. Review data is waiting on a backend API.',
+        href: '/progress-tracker',
+        internal: true,
+        availability: 'Frontend shell',
+      },
     ],
   },
   Manager: {
@@ -150,6 +164,13 @@ const roleDashboardContent = {
         title: 'Onboarding Forms',
         description: 'Open the onboarding workspace. Review workflows are waiting on a backend API.',
         href: '/onboarding',
+        internal: true,
+        availability: 'Frontend shell',
+      },
+      {
+        title: 'Progress Tracker',
+        description: 'Open the lifecycle progress workspace. Review data is waiting on a backend API.',
+        href: '/progress-tracker',
         internal: true,
         availability: 'Frontend shell',
       },
