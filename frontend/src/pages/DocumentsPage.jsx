@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 const documentCategories = [
@@ -11,6 +11,7 @@ const documentCategories = [
 ]
 
 const allowedFileTypes = '.pdf,.doc,.docx,.jpg,.jpeg,.png'
+const allowedFileExtensions = new Set(['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'])
 const maxFileSize = 10 * 1024 * 1024
 
 function readStoredUser() {
@@ -26,6 +27,15 @@ function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+function getFileExtension(fileName) {
+  return fileName.split('.').pop()?.toLowerCase() || ''
+}
+
+function formatFileType(file) {
+  if (file.type) return file.type
+  return `${getFileExtension(file.name).toUpperCase()} document`
+}
+
 function DocumentsPage() {
   const user = readStoredUser()
   const role = user?.role_name || 'Employee'
@@ -34,6 +44,7 @@ function DocumentsPage() {
   const [category, setCategory] = useState('')
   const [selectedFile, setSelectedFile] = useState(null)
   const [fileError, setFileError] = useState('')
+  const fileInputRef = useRef(null)
   const documentState = 'unavailable'
 
   const handleFileChange = (event) => {
@@ -45,6 +56,13 @@ function DocumentsPage() {
       return
     }
 
+    if (!allowedFileExtensions.has(getFileExtension(file.name))) {
+      setSelectedFile(null)
+      setFileError('Unsupported file type. Choose a PDF, DOC, DOCX, JPG, JPEG, or PNG file.')
+      event.target.value = ''
+      return
+    }
+
     if (file.size > maxFileSize) {
       setSelectedFile(null)
       setFileError('This file is larger than 10 MB. Choose a smaller file.')
@@ -53,6 +71,12 @@ function DocumentsPage() {
     }
 
     setSelectedFile(file)
+  }
+
+  const clearSelectedFile = () => {
+    setSelectedFile(null)
+    setFileError('')
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const roleDescription = isEmployee
@@ -173,9 +197,9 @@ function DocumentsPage() {
             </div>
 
             <label htmlFor="document-file" className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-sky-300 bg-sky-50 p-6 text-center transition hover:border-sky-500 hover:bg-sky-100">
-              <span className="text-sm font-semibold text-sky-800">Select a document file</span>
+              <span className="text-sm font-semibold text-sky-800">Choose a document file</span>
               <span className="mt-1 text-xs text-sky-700">PDF, DOC, DOCX, JPG, JPEG, or PNG up to 10 MB</span>
-              <input id="document-file" type="file" accept={allowedFileTypes} onChange={handleFileChange} className="sr-only" />
+              <input ref={fileInputRef} id="document-file" type="file" accept={allowedFileTypes} onChange={handleFileChange} className="sr-only" />
             </label>
 
             {fileError && <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{fileError}</p>}
@@ -184,15 +208,15 @@ function DocumentsPage() {
               <div className="mt-4 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-slate-900">{selectedFile.name}</p>
-                  <p className="mt-1 text-xs text-slate-500">{formatFileSize(selectedFile.size)} selected</p>
+                  <p className="mt-1 text-xs text-slate-500">{formatFileSize(selectedFile.size)} · {formatFileType(selectedFile)}</p>
                 </div>
-                <button type="button" className="action-button-secondary self-start sm:self-auto" onClick={() => setSelectedFile(null)}>Clear file</button>
+                <button type="button" className="action-button-secondary self-start sm:self-auto" onClick={clearSelectedFile}>Remove file</button>
               </div>
             )}
 
             <div className="mt-5 flex flex-wrap gap-3">
-              <button type="button" className="action-button-primary" disabled title="Upload will be enabled when the backend endpoint is available">Upload unavailable</button>
-              <span className="self-center text-xs text-amber-700">Backend upload support required</span>
+              <button type="button" className="action-button-primary" disabled title="Document upload will be available once the Documents API is connected.">Upload file</button>
+              <span className="self-center text-xs text-amber-700">Document upload will be available once the Documents API is connected.</span>
             </div>
           </div>
 
