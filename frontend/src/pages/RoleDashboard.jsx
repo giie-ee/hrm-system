@@ -44,6 +44,13 @@ const roleDashboardContent = {
         availability: 'Frontend shell',
       },
       {
+        title: 'Benefits',
+        description: 'Open the benefits workspace. Plans and enrollment data are waiting on a backend API.',
+        href: '/benefits',
+        internal: true,
+        availability: 'Frontend shell',
+      },
+      {
         title: 'Onboarding Forms',
         description: 'Open the onboarding workspace. Save and review actions are waiting on a backend API.',
         href: '/onboarding',
@@ -106,6 +113,13 @@ const roleDashboardContent = {
         availability: 'Frontend shell',
       },
       {
+        title: 'Benefits',
+        description: 'Open the benefits workspace. Plans and enrollment data are waiting on a backend API.',
+        href: '/benefits',
+        internal: true,
+        availability: 'Frontend shell',
+      },
+      {
         title: 'Onboarding Forms',
         description: 'Open the onboarding workspace. Review workflows are waiting on a backend API.',
         href: '/onboarding',
@@ -157,6 +171,13 @@ const roleDashboardContent = {
         title: 'Documents',
         description: 'Open the documents workspace. Document data is waiting on a backend API.',
         href: '/documents',
+        internal: true,
+        availability: 'Frontend shell',
+      },
+      {
+        title: 'Benefits',
+        description: 'Open the benefits workspace. Plans and enrollment data are waiting on a backend API.',
+        href: '/benefits',
         internal: true,
         availability: 'Frontend shell',
       },

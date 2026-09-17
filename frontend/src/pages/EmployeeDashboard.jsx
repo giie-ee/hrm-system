@@ -94,6 +94,12 @@ function EmployeeDashboard() {
       tone: 'emerald',
     },
     {
+      title: 'Benefits',
+      description: 'Review your benefits workspace and enrollment availability.',
+      to: '/benefits',
+      tone: 'amber',
+    },
+    {
       title: 'Onboarding Forms',
       description: 'Complete your onboarding information and review required fields.',
       to: '/onboarding',
