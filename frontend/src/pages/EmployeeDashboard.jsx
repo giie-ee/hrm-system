@@ -88,6 +88,12 @@ function EmployeeDashboard() {
       tone: 'amber',
     },
     {
+      title: 'Payslip',
+      description: 'View a payslip from your available payroll records.',
+      to: '/payslip',
+      tone: 'sky',
+    },
+    {
       title: 'Documents',
       description: 'Open the documents workspace and backend availability status.',
       to: '/documents',

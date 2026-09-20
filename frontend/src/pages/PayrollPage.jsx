@@ -177,7 +177,11 @@ function PayrollPage() {
 
   const isBusy = Boolean(loadingAction)
   const isProcessed = payroll?.payroll_status === 'Processed'
-  const isEmployee = JSON.parse(localStorage.getItem('hrms_user') || 'null')?.role_name === 'Employee'
+  const currentRole = JSON.parse(localStorage.getItem('hrms_user') || 'null')?.role_name
+  const canManagePayroll = ['Admin', 'HR'].includes(currentRole)
+  const processedPayrolls = payrollRecords.filter((record) => record.payroll_status === 'Processed').length
+  const draftPayrolls = payrollRecords.filter((record) => record.payroll_status === 'Draft').length
+  const latestNetSalary = payrollRecords[0]?.net_salary
 
   const handlePayrollSelect = (event) => {
     const selectedPayroll = payrollRecords.find(
@@ -219,6 +223,13 @@ function PayrollPage() {
             {successMessage}
           </div>
         )}
+
+        <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryCard label="Total payroll records" value={payrollRecordsLoading ? 'Loading...' : payrollRecordsError ? 'Unavailable' : payrollRecords.length} />
+          <SummaryCard label="Processed payrolls" value={payrollRecordsLoading ? 'Loading...' : payrollRecordsError ? 'Unavailable' : processedPayrolls} />
+          <SummaryCard label="Draft payrolls" value={payrollRecordsLoading ? 'Loading...' : payrollRecordsError ? 'Unavailable' : draftPayrolls} />
+          <SummaryCard label="Latest net salary" value={payrollRecordsLoading ? 'Loading...' : payrollRecordsError ? 'Unavailable' : formatAmount(latestNetSalary)} />
+        </section>
 
         <section className="panel-surface mb-6 p-5 sm:p-6">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -299,7 +310,7 @@ function PayrollPage() {
               <p className="mt-1 text-sm text-slate-600">The backend looks up the employee&apos;s active salary.</p>
             </div>
 
-            {isEmployee ? (
+            {!canManagePayroll ? (
               <p className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-700">Your payroll records are view-only.</p>
             ) : (
             <form onSubmit={createPayroll} className="grid gap-4 sm:grid-cols-2">
@@ -373,7 +384,7 @@ function PayrollPage() {
             </button>
           </div>
 
-          {!isEmployee && <form onSubmit={addItem} className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr_0.8fr_1.5fr_auto] lg:items-end">
+          {canManagePayroll && <form onSubmit={addItem} className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr_0.8fr_1.5fr_auto] lg:items-end">
             <label>
               <span className="mb-2 block text-sm font-medium text-slate-700">Type</span>
               <select name="item_type" value={itemForm.item_type} onChange={handleItemChange} disabled={!payroll || isProcessed || isBusy} className="field-input">
@@ -432,7 +443,7 @@ function PayrollPage() {
             <h2 className="mt-2 text-lg font-bold text-slate-900">Calculate and Process</h2>
             <p className="mt-1 text-sm text-slate-600">Calculation updates the totals. Processing changes a Draft to Processed.</p>
           </div>
-          {!isEmployee && <div className="flex flex-col gap-3 sm:flex-row">
+          {canManagePayroll && <div className="flex flex-col gap-3 sm:flex-row">
             <button type="button" disabled={!payroll || isProcessed || isBusy} onClick={calculatePayroll} className="action-button-primary">
               {loadingAction === 'calculate' ? 'Calculating...' : 'Calculate Payroll'}
             </button>
@@ -451,6 +462,15 @@ function SummaryValue({ label, value }) {
     <div className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
       <dt className="section-label">{label}</dt>
       <dd className="mt-2 text-base font-semibold text-slate-900">{value}</dd>
+    </div>
+  )
+}
+
+function SummaryCard({ label, value }) {
+  return (
+    <div className="panel-surface p-5">
+      <p className="section-label">{label}</p>
+      <p className="mt-2 text-xl font-bold tracking-tight text-slate-900">{value}</p>
     </div>
   )
 }
