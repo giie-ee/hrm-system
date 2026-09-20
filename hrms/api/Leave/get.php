@@ -53,7 +53,7 @@ if ($user_role === "Employee") {
 $allowed_statuses = ["Pending", "Approved", "Rejected", "Cancelled"];
 
 if ($employee_id !== null && $employee_id !== "") {
-    if (!ctype_digit($employee_id) || (int)$employee_id <= 0) {
+    if (!filter_var($employee_id, FILTER_VALIDATE_INT) || (int)$employee_id <= 0) {
         http_response_code(400);
         echo json_encode([
             "success" => false,
