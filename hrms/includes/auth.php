@@ -1,8 +1,8 @@
 <?php
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+declare(strict_types=1);
+
+require_once __DIR__ . '/session.php';
 
 /**
  * Check whether a user is logged in.

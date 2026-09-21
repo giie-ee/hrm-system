@@ -1,8 +1,7 @@
 <?php
 
 require_once "../../includes/cors.php";
-
-session_start();
+require_once "../../includes/session.php";
 
 header("Content-Type: application/json");
 
@@ -23,15 +22,14 @@ $_SESSION = [];
 if (ini_get("session.use_cookies")) {
     $session_cookie_parameters = session_get_cookie_params();
 
-    setcookie(
-        session_name(),
-        "",
-        time() - 42000,
-        $session_cookie_parameters["path"],
-        $session_cookie_parameters["domain"],
-        $session_cookie_parameters["secure"],
-        $session_cookie_parameters["httponly"]
-    );
+    setcookie(session_name(), '', [
+        'expires' => time() - 42000,
+        'path' => $session_cookie_parameters['path'],
+        'domain' => $session_cookie_parameters['domain'],
+        'secure' => $session_cookie_parameters['secure'],
+        'httponly' => $session_cookie_parameters['httponly'],
+        'samesite' => 'Lax',
+    ]);
 }
 
 if (!session_destroy()) {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import apiClient from '../api/client'
 
@@ -19,7 +19,7 @@ function AttendancePage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  const loadRecords = async () => {
+  const loadRecords = useCallback(async () => {
     setLoading(true)
     setError('')
 
@@ -34,7 +34,7 @@ function AttendancePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [date, status, employeeId, isEmployee])
 
   useEffect(() => {
     const load = async () => {
@@ -42,7 +42,7 @@ function AttendancePage() {
     }
 
     load()
-  }, [date, status, employeeId, isEmployee])
+  }, [loadRecords])
 
   const runAction = async (name, endpoint) => {
     setAction(name)

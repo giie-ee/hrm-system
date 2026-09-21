@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import apiClient from '../api/client'
 
@@ -30,7 +30,7 @@ function LeavePage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
     setError('')
 
@@ -58,7 +58,7 @@ function LeavePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [employeeId, status, isEmployee])
 
   useEffect(() => {
     const load = async () => {
@@ -66,7 +66,7 @@ function LeavePage() {
     }
 
     load()
-  }, [employeeId, status, isEmployee])
+  }, [loadData])
 
   const handleChange = (event) => {
     const { name, value } = event.target

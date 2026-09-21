@@ -19,7 +19,7 @@ const roleDashboardContent = {
       {
         title: 'Admin Access Check',
         description: 'Verify the authenticated administrator session against the PHP backend.',
-        href: 'http://localhost:8000/api/test-admin.php',
+        href: '/api/test-admin.php',
         availability: 'Available',
       },
       {

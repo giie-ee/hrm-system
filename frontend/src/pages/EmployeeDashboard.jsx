@@ -132,7 +132,7 @@ function EmployeeDashboard() {
     {
       title: user.role_name === 'Admin' ? 'Admin Access Check' : 'Employee Access Check',
       description: 'Validate the current authenticated session.',
-      href: user.role_name === 'Admin' ? 'http://localhost:8000/api/test-admin.php' : 'http://localhost:8000/api/test-employee.php',
+      href: user.role_name === 'Admin' ? '/api/test-admin.php' : '/api/test-employee.php',
       target: '_blank',
       rel: 'noreferrer',
       tone: 'emerald',

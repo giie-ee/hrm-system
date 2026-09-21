@@ -4,15 +4,18 @@ services:
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /
+    dockerContext: .
+    healthCheckPath: /api/health.php
     envVars:
-      - key: DB_HOST
+      - key: APP_ENV
+        value: production
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DATABASE_URL
         sync: false
-      - key: DB_PORT
-        value: "3306"
-      - key: DB_USERNAME
-        sync: false
-      - key: DB_PASSWORD
-        sync: false
-      - key: DB_DATABASE
-        sync: false
+      - key: DB_SSLMODE
+        value: require
+      - key: MIGRATE_ON_START
+        value: "1"
+      - key: SESSION_COOKIE_SECURE
+        value: "1"
