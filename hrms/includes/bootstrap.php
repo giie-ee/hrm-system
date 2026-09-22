@@ -17,7 +17,16 @@ set_exception_handler(static function (Throwable $exception): void {
         $status = 409;
         $message = 'The operation conflicts with an existing record or concurrent change.';
     }
-    if ($status === 500) error_log('HRMS failure ' . get_class($exception) . ' code ' . $exception->getCode());
+    if ($status === 500) {
+        error_log(sprintf(
+            'HRMS failure %s code %s at %s:%d: %s',
+            get_class($exception),
+            (string) $exception->getCode(),
+            basename($exception->getFile()),
+            $exception->getLine(),
+            $exception->getMessage()
+        ));
+    }
     http_response_code($status);
     echo json_encode(['success' => false, 'message' => $message]);
 });

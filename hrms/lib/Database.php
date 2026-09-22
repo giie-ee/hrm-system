@@ -66,7 +66,11 @@ final class Database
         return self::createPdo($dsn, $username, $password);
     }
 
-    private static function createPdo(string $dsn, string $username, string $password): PDO
+    private static function createPdo(
+        string $dsn,
+        string $username,
+        #[\SensitiveParameter] string $password
+    ): PDO
     {
         $pdo = new PDO($dsn, $username, $password, [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -233,7 +237,8 @@ final class MysqliCompatStatement
 
             if ($returningColumn !== null && isset($this->rows[0][$returningColumn])) {
                 $this->insert_id = (int) $this->rows[0][$returningColumn];
-            } elseif (preg_match('/^\s*INSERT\b/i', $sql)) {
+            } elseif ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'pgsql'
+                && preg_match('/^\s*INSERT\b/i', $sql)) {
                 $lastId = $this->pdo->lastInsertId();
                 $this->insert_id = ctype_digit((string) $lastId) ? (int) $lastId : 0;
             }
