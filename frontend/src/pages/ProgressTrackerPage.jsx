@@ -1,153 +1,67 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-
-const plannedStages = [
-  {
-    title: 'Onboarding information',
-    description: 'Personal, contact, employment, and required onboarding details.',
-  },
-  {
-    title: 'Required documents',
-    description: 'Documents needed to complete the employee record.',
-  },
-  {
-    title: 'Manager review',
-    description: 'Manager confirmation of role and initial objectives.',
-  },
-  {
-    title: 'HR review',
-    description: 'HR verification and completion of the employee setup.',
-  },
-]
+import apiClient from '../api/client'
 
 function readStoredUser() {
-  try {
-    return JSON.parse(localStorage.getItem('hrms_user') || 'null')
-  } catch {
-    return null
-  }
+  try { return JSON.parse(localStorage.getItem('hrms_user') || 'null') } catch { return null }
 }
 
 function ProgressTrackerPage() {
   const user = readStoredUser()
   const role = user?.role_name || 'Employee'
-  const isEmployee = role === 'Employee'
-  const [trackerState] = useState('unavailable')
+  const [onboarding, setOnboarding] = useState([])
+  const [goals, setGoals] = useState([])
+  const [training, setTraining] = useState([])
+  const [state, setState] = useState('loading')
+  const [message, setMessage] = useState('')
 
-  const heading = isEmployee ? 'Your progress tracker' : `${role} progress workspace`
-  const description = isEmployee
-    ? 'Follow your onboarding and employee lifecycle milestones as they are completed.'
-    : `Review employee lifecycle progress when progress records and role permissions are connected.`
+  useEffect(() => {
+    let active = true
+    Promise.all([
+      apiClient.get('/api/onboarding/get.php'),
+      apiClient.get('/api/performance/goals/get.php'),
+      apiClient.get('/api/training/enrollments.php'),
+    ]).then(([onboardingResponse, goalsResponse, trainingResponse]) => {
+      if (!active) return
+      setOnboarding(onboardingResponse.data.data || [])
+      setGoals(goalsResponse.data.data || [])
+      setTraining(trainingResponse.data.data || [])
+      setState('ready')
+    }).catch((error) => {
+      if (!active) return
+      setMessage(error.response?.data?.message || 'Unable to load progress records.')
+      setState('error')
+    })
+    return () => { active = false }
+  }, [])
+
+  const milestones = useMemo(() => {
+    const latest = onboarding[0]
+    const documents = latest?.documents || []
+    const completedGoals = goals.filter((goal) => goal.status === 'Completed').length
+    const completedTraining = training.filter((item) => item.status === 'Completed').length
+    return [
+      { name: 'Onboarding workflow', progress: latest?.onboarding_status === 'Completed' ? 100 : Number(latest?.verification_percentage || 0), detail: latest?.onboarding_status || 'Not started' },
+      { name: 'Document verification', progress: documents.length ? Math.round(100 * documents.filter((item) => item.document_status === 'Verified').length / documents.length) : 0, detail: `${documents.filter((item) => item.document_status === 'Verified').length} of ${documents.length} verified` },
+      { name: 'Performance goals', progress: goals.length ? Math.round(goals.reduce((sum, goal) => sum + Number(goal.progress || 0), 0) / goals.length) : 0, detail: `${completedGoals} of ${goals.length} completed` },
+      { name: 'Training assignments', progress: training.length ? Math.round(100 * completedTraining / training.length) : 0, detail: `${completedTraining} of ${training.length} completed` },
+    ]
+  }, [goals, onboarding, training])
+
+  const overall = milestones.length ? Math.round(milestones.reduce((sum, milestone) => sum + milestone.progress, 0) / milestones.length) : 0
 
   return (
     <main className="min-h-screen bg-slate-100 p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl">
-        <header className="panel-surface mb-6 p-4 sm:p-6">
-          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-600">HRMS / Employee lifecycle</p>
-              <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Progress Tracker</h1>
-              <p className="mt-2 max-w-2xl text-sm text-slate-600">Track onboarding, review, and employee development milestones in one workspace.</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">{role}</span>
-              <Link to="/dashboard" className="action-button-secondary">Back to Dashboard</Link>
-            </div>
-          </div>
-        </header>
+      <div className="mx-auto max-w-6xl">
+        <header className="panel-surface mb-6 p-4 sm:p-6"><div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div><p className="section-label">HRMS / Development</p><h1 className="mt-2 text-3xl font-bold text-slate-900">Progress tracker</h1><p className="mt-2 text-sm text-slate-600">A live summary calculated from onboarding, performance, and training records.</p></div><div className="flex items-center gap-3"><span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">{role}</span><Link to="/dashboard" className="action-button-secondary">Back to Dashboard</Link></div></div></header>
 
-        <section className="mb-6 grid gap-4 md:grid-cols-3">
-          <div className="panel-surface p-5">
-            <p className="section-label">Progress status</p>
-            <p className="mt-2 text-lg font-bold text-amber-600">Backend unavailable</p>
-            <p className="mt-1 text-sm text-slate-500">No progress records are exposed yet.</p>
-          </div>
-          <div className="panel-surface p-5">
-            <p className="section-label">Overall completion</p>
-            <p className="mt-2 text-lg font-bold text-slate-900">Not available</p>
-            <p className="mt-1 text-sm text-slate-500">A percentage will appear with real data.</p>
-          </div>
-          <div className="panel-surface p-5">
-            <p className="section-label">Access scope</p>
-            <p className="mt-2 text-lg font-bold text-emerald-600">{isEmployee ? 'My progress' : 'Review ready'}</p>
-            <p className="mt-1 text-sm text-slate-500">Based on your current role.</p>
-          </div>
-        </section>
+        <section className="mb-6 grid gap-4 md:grid-cols-3"><div className="panel-surface p-5"><p className="section-label">Overall progress</p><p className="mt-2 text-3xl font-bold text-sky-700">{state === 'ready' ? `${overall}%` : '—'}</p></div><div className="panel-surface p-5"><p className="section-label">Active goals</p><p className="mt-2 text-3xl font-bold text-slate-900">{goals.filter((goal) => goal.status !== 'Cancelled').length}</p></div><div className="panel-surface p-5"><p className="section-label">Training records</p><p className="mt-2 text-3xl font-bold text-slate-900">{training.length}</p></div></section>
 
-        <section className="panel-surface mb-6 p-5 sm:p-6">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <p className="section-label">Progress overview</p>
-              <h2 className="mt-2 text-lg font-bold text-slate-900">{heading}</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{description}</p>
-            </div>
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">Not connected</span>
-          </div>
+        {state === 'loading' && <div className="panel-surface p-6 text-sm text-slate-600">Loading progress records...</div>}
+        {state === 'error' && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">{message}</div>}
+        {state === 'ready' && <section className="panel-surface p-5 sm:p-6"><p className="section-label">Milestones</p><h2 className="mt-2 text-lg font-bold text-slate-900">{role === 'Employee' ? 'My development progress' : 'Accessible employee progress'}</h2><div className="mt-6 space-y-5">{milestones.map((milestone) => <article key={milestone.name}><div className="mb-2 flex items-center justify-between gap-3"><div><p className="font-semibold text-slate-900">{milestone.name}</p><p className="text-xs text-slate-500">{milestone.detail}</p></div><span className="text-sm font-bold text-sky-700">{milestone.progress}%</span></div><div className="h-2.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-sky-500 transition-all" style={{ width: `${milestone.progress}%` }} /></div></article>)}</div></section>}
 
-          {trackerState === 'loading' && (
-            <div className="mt-5 rounded-xl border border-sky-200 bg-sky-50 p-5 text-sm text-sky-700" role="status">Loading progress information...</div>
-          )}
-
-          {trackerState === 'error' && (
-            <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700" role="alert">The progress service could not be reached. Try again when the backend is available.</div>
-          )}
-
-          {trackerState === 'unavailable' && (
-            <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-7 text-center" role="status">
-              <p className="text-base font-semibold text-slate-800">No progress data available</p>
-              <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-600">The current PHP service does not provide progress tracker records. No percentage, employee progress, or completion status is shown until the backend is connected.</p>
-            </div>
-          )}
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="panel-surface p-5 sm:p-6">
-            <div className="mb-5 flex items-start justify-between gap-3">
-              <div>
-                <p className="section-label">Milestone timeline</p>
-                <h2 className="mt-2 text-lg font-bold text-slate-900">Progress stages</h2>
-              </div>
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">Awaiting data</span>
-            </div>
-
-            <ol className="space-y-4" aria-label="Planned progress stages">
-              {plannedStages.map((stage, index) => (
-                <li key={stage.title} className="flex gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-slate-400 ring-1 ring-slate-200">{index + 1}</div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                      <h3 className="font-semibold text-slate-800">{stage.title}</h3>
-                      <span className="self-start rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600">Status unavailable</span>
-                    </div>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">{stage.description}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </div>
-
-          <div className="panel-surface p-5 sm:p-6">
-            <p className="section-label">Status legend</p>
-            <h2 className="mt-2 text-lg font-bold text-slate-900">Lifecycle status model</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">These statuses are ready for connected progress records. They are not assigned to any employee on this screen.</p>
-            <div className="mt-5 space-y-3">
-              {[
-                ['Not Started', 'bg-slate-100 text-slate-600'],
-                ['In Progress', 'bg-sky-100 text-sky-700'],
-                ['Pending Review', 'bg-amber-100 text-amber-700'],
-                ['Completed', 'bg-emerald-100 text-emerald-700'],
-              ].map(([label, style]) => (
-                <div key={label} className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 p-3">
-                  <span className="text-sm text-slate-700">{label}</span>
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${style}`}>Available status</span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
-              <strong>Backend connection needed.</strong> Progress percentages, filtering, employee selection, and milestone updates require an authenticated progress API.
-            </div>
-          </div>
-        </section>
+        <div className="mt-6 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-800">Progress is calculated only from records currently stored in the database. Missing records remain at zero rather than being estimated.</div>
       </div>
     </main>
   )

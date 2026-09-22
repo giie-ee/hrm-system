@@ -31,7 +31,7 @@ function EmployeeDashboard() {
       return
     } finally {
       localStorage.removeItem('hrms_user')
-      localStorage.removeItem('hrms_token')
+      sessionStorage.removeItem('hrms_csrf_token')
       navigate('/login', { replace: true })
     }
   }
@@ -50,11 +50,10 @@ function EmployeeDashboard() {
   useEffect(() => {
     if (!user) return
 
-    const endpoint = user.role_name === 'Admin' ? '/api/test-admin.php' : '/api/test-employee.php'
-
     apiClient
-      .get(endpoint)
+      .get('/api/auth/me.php')
       .then((response) => {
+        sessionStorage.setItem('hrms_csrf_token', response.data.data?.csrf_token || '')
         setSessionStatus({
           loading: false,
           ok: true,

@@ -11,4 +11,12 @@ const apiClient = axios.create({
   },
 })
 
+apiClient.interceptors.request.use((config) => {
+  const csrfToken = sessionStorage.getItem('hrms_csrf_token')
+  if (csrfToken && config.method?.toLowerCase() !== 'get') {
+    config.headers['X-CSRF-Token'] = csrfToken
+  }
+  return config
+})
+
 export default apiClient

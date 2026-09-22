@@ -86,11 +86,12 @@ Never place the real URL in source code, screenshots, reports or team chat.
 
    ```text
    Applied: 001_initial_schema.sql
+   Applied: 002_complete_hrms_workflows.sql
    Database migrations are up to date.
    ```
 
-   Later deploys should show `Already applied: 001_initial_schema.sql` instead
-   of creating duplicate tables.
+   Later deploys should show both migrations as `Already applied` instead of
+   creating duplicate tables.
 
 ### 5. Verify application and database synchronization
 
@@ -102,33 +103,30 @@ Never place the real URL in source code, screenshots, reports or team chat.
 
 2. Open the service root URL. It should display Agatha's React login interface,
    not the PHP placeholder.
-3. In Neon's **Tables** view or SQL editor, confirm these ten application
-   tables plus the migration ledger:
-
-   ```text
-   roles                 employees
-   users                 attendance
-   leave_types           leave_balances
-   leave_requests        employee_salaries
-   payroll               payroll_items
-   schema_migrations
-   ```
+3. In Neon's **Tables** view or SQL editor, confirm 35 application tables plus
+   the migration ledger. The added groups include departments/positions,
+   benefits, onboarding/documents, performance, recruitment, training,
+   notifications, announcements and audit history.
 
 4. Run these read-only checks in the Neon SQL editor:
 
    ```sql
    SELECT version, applied_at FROM schema_migrations ORDER BY version;
    SELECT role_id, role_name FROM roles ORDER BY role_id;
+   SELECT COUNT(*) AS application_tables
+   FROM information_schema.tables
+   WHERE table_schema = 'public'
+     AND table_name <> 'schema_migrations';
    ```
 
-   The first query should list `001_initial_schema.sql`; the second should list
-   Admin, HR, Manager and Employee.
+   The first query should list migrations 001 and 002, the second should list
+   Admin, HR, Manager and Employee, and the final count should be 35.
 
 ### 6. Create and test the first administrator
 
 Follow the protected seed process below, then verify login. After login, test
-one read from Employees, Attendance, Leave and Payroll before describing the
-hosted integration as complete.
+one read from Employees, Attendance, Leave, Payroll, Benefits and Onboarding
+before describing the hosted integration as complete.
 
 ## Blueprint alternative
 
@@ -201,9 +199,13 @@ requires the explicit one-time opt-in.
 
 ## Schema growth
 
-`001_initial_schema.sql` creates only the tables required by the backend code
-currently in this repository: roles, employees, users, attendance, leave and
-payroll. It deliberately does not invent database structures for frontend-only
-modules or Kamuti's unavailable code. When a module gains a confirmed API and
-data model, add a new migration such as `002_documents.sql`; never rewrite an
-already-applied production migration.
+`001_initial_schema.sql` is the deployed core and remains unchanged.
+`002_complete_hrms_workflows.sql` additively ports Kamuti's confirmed backend
+tables and the relationships supported by the supplied diagrams. Keep both
+files immutable after Neon records them. Add future changes as migration 003 or
+later; never rewrite an already-applied production migration.
+
+Document files need separate persistence planning. The database stores document
+metadata, but ordinary Render container storage is ephemeral. Use a Render
+persistent disk on a supported plan or object storage before treating uploaded
+files as durable production records.

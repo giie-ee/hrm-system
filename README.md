@@ -67,7 +67,13 @@ service. No database password or administrator seed password belongs in Git.
 
 ## Current scope
 
-Login, employees, attendance, leave and payroll have PHP endpoints. Benefits,
-documents, onboarding and progress tracking currently remain frontend-first
-modules and still need database/API implementation before they can be described
-as complete end-to-end features.
+The backend now exposes the confirmed employee/account, attendance, leave,
+payroll, benefits, onboarding/documents, performance, recruitment, training,
+manager, analytics, notifications, announcements and audit workflows supplied
+in Kamuti's delivery. The existing React Benefits, Documents, Onboarding and
+Progress Tracker screens read the new APIs. Administrative forms are still an
+incremental UI task even though their protected API routes are present.
+
+See [the backend integration record](docs/BACKEND_INTEGRATION.md) for the
+code-versus-diagram comparison, schema groups, validation boundary and known
+deployment limitations.

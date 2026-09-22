@@ -45,31 +45,31 @@ const roleDashboardContent = {
       },
       {
         title: 'Documents',
-        description: 'Open the documents workspace. Document data is waiting on a backend API.',
+        description: 'Open the connected onboarding document workspace.',
         href: '/documents',
         internal: true,
-        availability: 'Frontend shell',
+        availability: 'Available',
       },
       {
         title: 'Benefits',
-        description: 'Open the benefits workspace. Plans and enrollment data are waiting on a backend API.',
+        description: 'Review live benefit plans and enrollment data.',
         href: '/benefits',
         internal: true,
-        availability: 'Frontend shell',
+        availability: 'Available',
       },
       {
         title: 'Onboarding Forms',
-        description: 'Open the onboarding workspace. Save and review actions are waiting on a backend API.',
+        description: 'Review live onboarding status and document progress.',
         href: '/onboarding',
         internal: true,
-        availability: 'Frontend shell',
+        availability: 'Available',
       },
       {
         title: 'Progress Tracker',
-        description: 'Open the lifecycle progress workspace. Progress records are waiting on a backend API.',
+        description: 'Review calculated onboarding, goal, and training progress.',
         href: '/progress-tracker',
         internal: true,
-        availability: 'Frontend shell',
+        availability: 'Available',
       },
     ],
   },
@@ -121,31 +121,31 @@ const roleDashboardContent = {
       },
       {
         title: 'Documents',
-        description: 'Open the documents workspace. Document data is waiting on a backend API.',
+        description: 'Open the connected onboarding document workspace.',
         href: '/documents',
         internal: true,
-        availability: 'Frontend shell',
+        availability: 'Available',
       },
       {
         title: 'Benefits',
-        description: 'Open the benefits workspace. Plans and enrollment data are waiting on a backend API.',
+        description: 'Review live benefit plans and enrollment data.',
         href: '/benefits',
         internal: true,
-        availability: 'Frontend shell',
+        availability: 'Available',
       },
       {
         title: 'Onboarding Forms',
-        description: 'Open the onboarding workspace. Review workflows are waiting on a backend API.',
+        description: 'Review live onboarding status and document progress.',
         href: '/onboarding',
         internal: true,
-        availability: 'Frontend shell',
+        availability: 'Available',
       },
       {
         title: 'Progress Tracker',
-        description: 'Open the lifecycle progress workspace. Review data is waiting on a backend API.',
+        description: 'Review calculated onboarding, goal, and training progress.',
         href: '/progress-tracker',
         internal: true,
-        availability: 'Frontend shell',
+        availability: 'Available',
       },
     ],
   },
@@ -190,31 +190,31 @@ const roleDashboardContent = {
       },
       {
         title: 'Documents',
-        description: 'Open the documents workspace. Document data is waiting on a backend API.',
+        description: 'Open the connected onboarding document workspace.',
         href: '/documents',
         internal: true,
-        availability: 'Frontend shell',
+        availability: 'Available',
       },
       {
         title: 'Benefits',
-        description: 'Open the benefits workspace. Plans and enrollment data are waiting on a backend API.',
+        description: 'Review live benefit plans and enrollment data.',
         href: '/benefits',
         internal: true,
-        availability: 'Frontend shell',
+        availability: 'Available',
       },
       {
         title: 'Onboarding Forms',
-        description: 'Open the onboarding workspace. Review workflows are waiting on a backend API.',
+        description: 'Review live onboarding status and document progress.',
         href: '/onboarding',
         internal: true,
-        availability: 'Frontend shell',
+        availability: 'Available',
       },
       {
         title: 'Progress Tracker',
-        description: 'Open the lifecycle progress workspace. Review data is waiting on a backend API.',
+        description: 'Review calculated onboarding, goal, and training progress.',
         href: '/progress-tracker',
         internal: true,
-        availability: 'Frontend shell',
+        availability: 'Available',
       },
       {
         title: 'Attendance',
@@ -268,7 +268,7 @@ function RoleDashboard() {
       return
     } finally {
       localStorage.removeItem('hrms_user')
-      localStorage.removeItem('hrms_token')
+      sessionStorage.removeItem('hrms_csrf_token')
       navigate('/login', { replace: true })
     }
   }
@@ -280,13 +280,12 @@ function RoleDashboard() {
   }, [navigate, user])
 
   useEffect(() => {
-    if (!user || user.role_name === 'HR' || user.role_name === 'Manager') return
-
-    const endpoint = user.role_name === 'Admin' ? '/api/test-admin.php' : '/api/test-employee.php'
+    if (!user) return
 
     apiClient
-      .get(endpoint)
+      .get('/api/auth/me.php')
       .then((response) => {
+        sessionStorage.setItem('hrms_csrf_token', response.data.data?.csrf_token || '')
         setSessionStatus({
           loading: false,
           ok: true,

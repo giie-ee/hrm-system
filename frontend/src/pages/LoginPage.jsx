@@ -30,6 +30,7 @@ function LoginPage() {
       if (response.data.success) {
         setSuccessMessage(response.data.message || 'Login successful.')
         localStorage.setItem('hrms_user', JSON.stringify(response.data.user))
+        sessionStorage.setItem('hrms_csrf_token', response.data.csrf_token || '')
         setTimeout(() => {
           navigate('/dashboard', { replace: true })
         }, 400)

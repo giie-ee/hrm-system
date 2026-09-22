@@ -143,11 +143,37 @@ final class MysqliCompatConnection
 final class MysqliCompatStatement
 {
     private const PRIMARY_KEYS = [
+        'announcements' => 'announcement_id',
+        'applicants' => 'applicant_id',
         'attendance' => 'attendance_id',
+        'audit_logs' => 'audit_id',
+        'benefit_history' => 'history_id',
+        'benefits' => 'benefit_id',
+        'departments' => 'department_id',
+        'document_history' => 'history_id',
+        'employee_benefits' => 'employee_benefit_id',
+        'employee_salaries' => 'salary_id',
         'employees' => 'employee_id',
+        'interviews' => 'interview_id',
+        'job_applications' => 'application_id',
+        'job_vacancies' => 'vacancy_id',
+        'leave_types' => 'leave_type_id',
         'leave_requests' => 'leave_request_id',
+        'manager_assignments' => 'assignment_id',
+        'notifications' => 'notification_id',
+        'onboarding' => 'onboarding_id',
+        'onboarding_documents' => 'document_id',
         'payroll' => 'payroll_id',
+        'payroll_attendance' => 'payroll_attendance_id',
         'payroll_items' => 'payroll_item_id',
+        'performance_cycles' => 'cycle_id',
+        'performance_feedback' => 'feedback_id',
+        'performance_goal_ratings' => 'rating_id',
+        'performance_goals' => 'goal_id',
+        'performance_reviews' => 'review_id',
+        'positions' => 'position_id',
+        'training_courses' => 'course_id',
+        'training_enrollments' => 'enrollment_id',
         'users' => 'user_id',
     ];
 
@@ -192,6 +218,9 @@ final class MysqliCompatStatement
                 if ($returningColumn !== null) {
                     $sql .= " RETURNING {$returningColumn}";
                 }
+            } elseif ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql'
+                && preg_match('/\bRETURNING\s+([a-z_][a-z0-9_]*)/i', $sql, $matches)) {
+                $returningColumn = strtolower($matches[1]);
             }
 
             $this->statement = $this->pdo->prepare($sql);
@@ -247,6 +276,13 @@ final class MysqliCompatResult
         }
 
         return $this->rows[$this->position++];
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    public function fetch_all(int $mode = 0): array
+    {
+        unset($mode);
+        return $this->rows;
     }
 
     public function free(): void

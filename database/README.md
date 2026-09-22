@@ -1,13 +1,15 @@
 # Database
 
 PostgreSQL is the deployment database and the source of truth for new schema
-changes. The initial schema is in `postgresql/001_initial_schema.sql`.
+changes. `postgresql/001_initial_schema.sql` creates the original deployed core.
+`postgresql/002_complete_hrms_workflows.sql` additively ports the confirmed
+Kamuti backend and ERD relationships without dropping existing Neon records.
 
-That first migration covers only tables referenced by the backend code present
-in this repository. Missing teammate code and frontend-only modules are not a
-sound basis for inventing production tables. Add each confirmed module through
-a new migration (`002_...sql`, `003_...sql`, and so on) as its API contract is
-agreed.
+The second migration expands the core employee model and adds departments,
+positions, manager assignments, benefits, onboarding/documents, performance,
+recruitment, training, notifications, announcements and audit history. Future
+changes must continue as `003_...sql`, `004_...sql`, and so on; never rewrite a
+migration already recorded on Neon.
 
 Run all pending migrations from the repository root:
 

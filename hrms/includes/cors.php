@@ -15,7 +15,7 @@ if ($origin !== '' && in_array($origin, $allowedOrigins, true)) {
 }
 
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-CSRF-Token');
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
     if ($origin !== '' && !in_array($origin, $allowedOrigins, true)) {
