@@ -210,6 +210,25 @@ When the command targets the production Neon database, it additionally requires
 variables immediately after the command. Do not leave shared demonstration
 accounts enabled on a public service after testing is complete.
 
+On Render services without an interactive Shell, the same CLI-only command can
+run once during startup. After the updated repository has been deployed, set:
+
+```dotenv
+SEED_DASHBOARD_USERS_ON_START=1
+ALLOW_DASHBOARD_TEST_SEED=1
+ALLOW_PRODUCTION_SEED=1
+SEED_ADMIN_PASSWORD=<strong temporary password>
+SEED_HR_PASSWORD=<strong temporary password>
+SEED_MANAGER_PASSWORD=<strong temporary password>
+SEED_EMPLOYEE_PASSWORD=<strong temporary password>
+```
+
+Save and deploy once. The logs should report that `admin`, `hruser`, `manager`
+and `employee` were created. Then set `SEED_DASHBOARD_USERS_ON_START=0`, remove
+both permission flags and all four password variables, and deploy again. This
+cleanup removes plaintext setup inputs from Render; it does not delete the
+hashed accounts stored in Neon.
+
 ## Schema growth
 
 `001_initial_schema.sql` is the deployed core and remains unchanged.
