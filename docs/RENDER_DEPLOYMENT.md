@@ -197,6 +197,19 @@ The password is hashed, the script refuses passwords shorter than 12
 characters, it does not overwrite an existing account, and production seeding
 requires the explicit one-time opt-in.
 
+## Optional four-role dashboard test accounts
+
+For a controlled demonstration, `bin/seed-dashboard-users.php` can create one
+Admin, HR, Manager and Employee account after both migrations have run. The
+command is CLI-only, requires `ALLOW_DASHBOARD_TEST_SEED=1`, and reads all four
+passwords from environment variables. Each password must have at least 12
+characters with uppercase, lowercase, number and symbol characters.
+
+When the command targets the production Neon database, it additionally requires
+`ALLOW_PRODUCTION_SEED=1`. Remove both permission flags and all four password
+variables immediately after the command. Do not leave shared demonstration
+accounts enabled on a public service after testing is complete.
+
 ## Schema growth
 
 `001_initial_schema.sql` is the deployed core and remains unchanged.

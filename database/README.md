@@ -17,6 +17,11 @@ Run all pending migrations from the repository root:
 php bin/migrate.php
 ```
 
+To create the four optional dashboard test accounts after migration, use the
+CLI-only `bin/seed-dashboard-users.php` command. It requires the explicit
+`ALLOW_DASHBOARD_TEST_SEED=1` flag and four strong passwords supplied through
+environment variables. It does not expose a browser-accessible setup route.
+
 The runner records applied filenames in `schema_migrations`, applies each new
 PostgreSQL migration in a transaction, and is safe to run again. Add later
 changes as new numbered files; do not rewrite an applied migration on a live
