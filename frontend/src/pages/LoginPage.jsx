@@ -1,12 +1,29 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import apiClient from '../api/client'
+import BrandMark from '../components/BrandMark'
+
+function EyeIcon({ hidden }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {hidden ? (
+        <>
+          <path d="M3 3l18 18" />
+          <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+          <path d="M9.9 5.1A11 11 0 0 1 12 5c4.4 0 8.2 2.4 10 7a11.8 11.8 0 0 1-4.7 5.4M6.6 6.6A11.6 11.6 0 0 0 2 12c1.8 4.6 5.6 7 10 7 1.4 0 2.8-.2 4-.6" />
+        </>
+      ) : (
+        <>
+          <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
+          <circle cx="12" cy="12" r="3" />
+        </>
+      )}
+    </svg>
+  )
+}
 
 function LoginPage() {
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-  })
+  const [formData, setFormData] = useState({ username: '', password: '' })
   const [showPassword, setShowPassword] = useState(false)
   const navigate = useNavigate()
   const [error, setError] = useState('')
@@ -15,7 +32,7 @@ function LoginPage() {
 
   const handleChange = (event) => {
     const { name, value } = event.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+    setFormData((previous) => ({ ...previous, [name]: value }))
   }
 
   const handleSubmit = async (event) => {
@@ -31,111 +48,136 @@ function LoginPage() {
         setSuccessMessage(response.data.message || 'Login successful.')
         localStorage.setItem('hrms_user', JSON.stringify(response.data.user))
         sessionStorage.setItem('hrms_csrf_token', response.data.csrf_token || '')
-        setTimeout(() => {
-          navigate('/dashboard', { replace: true })
-        }, 400)
+        setTimeout(() => navigate('/dashboard', { replace: true }), 400)
       } else {
         setError(response.data.message || 'Login failed.')
       }
-    } catch (err) {
-      const message = err.response?.data?.message || 'Unable to connect to the server.'
-      setError(message)
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || 'Unable to connect to the server.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-100 p-4 sm:p-6">
-      <div className="panel-surface w-full max-w-md p-6 shadow-xl ring-1 ring-slate-200 sm:p-8">
-        <div className="mb-6 text-center">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-sky-600">HRMS</p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900">Welcome back</h1>
-          <p className="mt-2 text-sm text-slate-500">Sign in to access your employee dashboard.</p>
+    <main className="login-page">
+      <div className="login-shell">
+        <header className="login-shell__header">
+          <BrandMark />
+          <span className="login-security-note">
+            <span className="login-security-note__dot" />
+            Secure team access
+          </span>
+        </header>
+
+        <div className="login-frame">
+          <section className="login-story" aria-label="Nexa People overview">
+            <div className="login-story__copy">
+              <span className="login-story__eyebrow">A clearer workday starts here</span>
+              <h1>People operations that feel simple.</h1>
+              <p>One calm workspace for employee records, leave, attendance, payroll, and progress.</p>
+            </div>
+
+            <div className="people-visual" aria-hidden="true">
+              <span className="people-visual__orb people-visual__orb--pink" />
+              <span className="people-visual__orb people-visual__orb--green" />
+              <span className="people-visual__orb people-visual__orb--blue" />
+              <span className="people-visual__orbit people-visual__orbit--large" />
+              <span className="people-visual__orbit people-visual__orbit--small" />
+              <span className="people-visual__person people-visual__person--one" />
+              <span className="people-visual__person people-visual__person--two" />
+              <span className="people-visual__person people-visual__person--three" />
+              <span className="people-visual__card people-visual__card--one"><i />Team ready</span>
+              <span className="people-visual__card people-visual__card--two"><i />Work in sync</span>
+            </div>
+
+            <div className="login-story__features">
+              <span>Role-based access</span>
+              <span>Connected records</span>
+              <span>Clear workflows</span>
+            </div>
+          </section>
+
+          <section className="login-panel">
+            <div className="login-panel__inner">
+              <div className="login-panel__heading">
+                <span className="login-panel__eyebrow">Welcome back</span>
+                <h2>Sign in to Nexa People</h2>
+                <p>Use the account provided for your Admin, HR, Manager, or Employee role.</p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="login-form" noValidate>
+                <div className="form-field">
+                  <label htmlFor="username">Username</label>
+                  <div className="form-control">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                      <circle cx="12" cy="8" r="4" />
+                      <path d="M4 21a8 8 0 0 1 16 0" />
+                    </svg>
+                    <input
+                      id="username"
+                      name="username"
+                      type="text"
+                      autoComplete="username"
+                      value={formData.username}
+                      onChange={handleChange}
+                      placeholder="Enter your username"
+                      aria-invalid={Boolean(error)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="password">Password</label>
+                  <div className="form-control">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                      <rect x="4" y="10" width="16" height="11" rx="3" />
+                      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                    </svg>
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="Enter your password"
+                      aria-invalid={Boolean(error)}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      onClick={() => setShowPassword((previous) => !previous)}
+                    >
+                      <EyeIcon hidden={showPassword} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="login-form__support">
+                  <span><i />Protected role-based workspace</span>
+                </div>
+
+                {error && <div className="form-message form-message--error" aria-live="polite">{error}</div>}
+                {successMessage && <div className="form-message form-message--success" aria-live="polite">{successMessage}</div>}
+
+                <button type="submit" disabled={loading} className="login-submit">
+                  <span>{loading ? 'Signing you in…' : 'Sign in to workspace'}</span>
+                  {!loading && (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                      <path d="M5 12h14m-5-5 5 5-5 5" />
+                    </svg>
+                  )}
+                </button>
+              </form>
+
+              <p className="login-panel__footer">Authorized team members only · Access is recorded securely</p>
+            </div>
+          </section>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-          <div>
-            <label htmlFor="username" className="mb-2 block text-sm font-medium text-slate-700">
-              Username
-            </label>
-            <input
-              id="username"
-              name="username"
-              type="text"
-              autoComplete="username"
-              value={formData.username}
-              onChange={handleChange}
-              placeholder="Enter your username"
-              aria-invalid={Boolean(error)}
-              className="field-input"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="mb-2 block text-sm font-medium text-slate-700">
-              Password
-            </label>
-            <div className="relative">
-              <input
-                id="password"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Enter your password"
-                aria-invalid={Boolean(error)}
-                className="field-input pr-11"
-              />
-              <button
-                type="button"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500 transition hover:text-slate-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200"
-              >
-                {showPassword ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5" aria-hidden="true">
-                    <path d="M3 3l18 18" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M10.58 10.58A2 2 0 0013.42 13.42" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M9.88 5.08A10.94 10.94 0 0112 5c4.42 0 8.18 2.44 10 7-1.08 2.42-2.7 4.28-4.68 5.42M6.61 6.61C4.5 7.76 2.8 9.67 2 12c1.82 4.56 5.58 7 10 7 1.4 0 2.76-.22 4-.63" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5" aria-hidden="true">
-                    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" strokeLinecap="round" strokeLinejoin="round" />
-                    <circle cx="12" cy="12" r="3" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-3 text-sm">
-            <label className="flex items-center gap-2 text-slate-600">
-              <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500" />
-              Remember me
-            </label>
-            <a href="#" className="font-medium text-sky-600 transition hover:text-sky-500">
-              Forgot password?
-            </a>
-          </div>
-
-          {error && (
-            <div aria-live="polite" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-
-          {successMessage && (
-            <div aria-live="polite" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-              {successMessage}
-            </div>
-          )}
-
-          <button type="submit" disabled={loading} className="action-button-primary w-full disabled:opacity-90">
-            {loading ? 'Signing in...' : 'Sign in'}
-          </button>
-        </form>
       </div>
     </main>
   )
