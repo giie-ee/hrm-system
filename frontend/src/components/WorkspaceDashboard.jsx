@@ -138,6 +138,7 @@ function WorkspaceDashboard({
   summary,
   statusLabel,
   modules,
+  insights,
   onSignOut,
 }) {
   const availableModules = modules.filter((module) => module.availability === 'Available')
@@ -240,6 +241,8 @@ function WorkspaceDashboard({
               </article>
             ))}
           </section>
+
+          {insights && <div className="mb-6">{insights}</div>}
 
           <div className="workspace-grid">
             <section className="workspace-panel workspace-panel--modules">
