@@ -4,11 +4,14 @@ PostgreSQL is the deployment database and the source of truth for new schema
 changes. `postgresql/001_initial_schema.sql` creates the original deployed core.
 `postgresql/002_complete_hrms_workflows.sql` additively ports the confirmed
 Kamuti backend and ERD relationships without dropping existing Neon records.
+`postgresql/003_nicholas_payroll_work_hours.sql` adds the configurable work
+schedule, attendance snapshots, reusable payroll components, department-safe
+employee defaults and baseline leave-type names identified during role testing.
 
 The second migration expands the core employee model and adds departments,
 positions, manager assignments, benefits, onboarding/documents, performance,
 recruitment, training, notifications, announcements and audit history. Future
-changes must continue as `003_...sql`, `004_...sql`, and so on; never rewrite a
+changes must continue as `004_...sql`, `005_...sql`, and so on; never rewrite a
 migration already recorded on Neon.
 
 Run all pending migrations from the repository root:
@@ -26,6 +29,19 @@ The runner records applied filenames in `schema_migrations`, applies each new
 PostgreSQL migration in a transaction, and is safe to run again. Add later
 changes as new numbered files; do not rewrite an applied migration on a live
 database.
+
+After running the migrations, confirm that the newest file was recorded:
+
+```sql
+SELECT filename, applied_at
+FROM schema_migrations
+ORDER BY applied_at;
+```
+
+The baseline leave types deliberately have zero entitlement. Admin/HR must set
+the organisation's approved leave policy and allocate balances before employees
+can submit leave successfully. The default Monday-Friday work schedule is also
+a starting value only; an Admin must confirm it against company policy.
 
 The old MySQL schema remains under `hrms/migrations` only as a local
 compatibility path. Set `DB_CONNECTION=mysql` if the team temporarily needs to

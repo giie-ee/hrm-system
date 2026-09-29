@@ -1,5 +1,5 @@
 <?php
-define('HRMS_METHOD', 'POST');
+define('HRMS_METHOD', 'GET');
 require_once __DIR__ . '/../../includes/bootstrap.php';
-$action = 'create';
+$action = 'policy';
 require __DIR__ . '/../../includes/modules/attendance.php';

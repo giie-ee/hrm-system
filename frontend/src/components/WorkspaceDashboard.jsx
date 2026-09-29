@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import BrandMark from './BrandMark'
+import apiClient from '../api/client'
 
 const iconPaths = {
   dashboard: (
@@ -80,6 +82,12 @@ const iconPaths = {
       <path d="M10 17l5-5-5-5M15 12H3M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
     </>
   ),
+  bell: (
+    <>
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+      <path d="M10 21h4" />
+    </>
+  ),
 }
 
 export function DashboardIcon({ name, className = '' }) {
@@ -140,11 +148,38 @@ function WorkspaceDashboard({
   modules,
   onSignOut,
 }) {
+  const [notifications, setNotifications] = useState([])
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const availableModules = modules.filter((module) => module.availability === 'Available')
   const navigationModules = availableModules.filter((module) => module.internal && module.href).slice(0, 7)
   const readiness = modules.length ? Math.round((availableModules.length / modules.length) * 100) : 0
   const sessionLabel = sessionStatus.loading ? 'Checking' : sessionStatus.ok ? 'Verified' : 'Pending'
   const displayName = user.username || 'Team member'
+  const unreadNotifications = notifications.filter((notification) => !notification.read_at).length
+
+  useEffect(() => {
+    let active = true
+    apiClient.get('/api/notifications/get.php', { params: { limit: 8 } })
+      .then((response) => {
+        if (active) setNotifications(response.data.data || [])
+      })
+      .catch(() => {
+        if (active) setNotifications([])
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const markNotificationRead = async (notification) => {
+    if (notification.read_at) return
+    try {
+      await apiClient.post('/api/notifications/read.php', { notification_id: notification.notification_id })
+      setNotifications((items) => items.map((item) => item.notification_id === notification.notification_id ? { ...item, read_at: new Date().toISOString() } : item))
+    } catch {
+      // The notification remains unread if the backend cannot record the change.
+    }
+  }
 
   const stats = [
     { label: 'Access', value: sessionLabel, icon: 'shield', tone: 'blue' },
@@ -202,6 +237,23 @@ function WorkspaceDashboard({
             <h1>{title}</h1>
           </div>
           <div className="workspace-topbar__actions">
+            <div className="notification-menu">
+              <button type="button" className="notification-button" aria-label={`${unreadNotifications} unread notifications`} aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((open) => !open)}>
+                <DashboardIcon name="bell" />
+                {unreadNotifications > 0 && <span>{unreadNotifications > 9 ? '9+' : unreadNotifications}</span>}
+              </button>
+              {notificationsOpen && (
+                <div className="notification-popover">
+                  <div className="notification-popover__heading"><strong>Notifications</strong><small>{unreadNotifications} unread</small></div>
+                  {notifications.length === 0 ? <p className="notification-empty">No notifications yet.</p> : notifications.map((notification) => (
+                    <button type="button" key={notification.notification_id} className={`notification-item${notification.read_at ? '' : ' notification-item--unread'}`} onClick={() => markNotificationRead(notification)}>
+                      <span>{notification.title}</span>
+                      <small>{notification.entity.replaceAll('-', ' ')}</small>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <span className={`session-chip${sessionStatus.ok ? ' session-chip--ok' : ''}`}>
               <span className="session-chip__dot" />
               {sessionLabel}

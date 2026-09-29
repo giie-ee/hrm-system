@@ -25,6 +25,8 @@ function formatAmount(amount) {
 }
 
 function PayrollPage() {
+  const currentRole = JSON.parse(localStorage.getItem('hrms_user') || 'null')?.role_name
+  const canManagePayroll = ['Admin', 'HR'].includes(currentRole)
   const [payrollForm, setPayrollForm] = useState(initialPayrollForm)
   const [itemForm, setItemForm] = useState(initialItemForm)
   const [payroll, setPayroll] = useState(null)
@@ -35,6 +37,33 @@ function PayrollPage() {
   const [loadingAction, setLoadingAction] = useState('')
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [employees, setEmployees] = useState([])
+  const [employeesError, setEmployeesError] = useState('')
+  const [payrollComponents, setPayrollComponents] = useState([])
+  const [salaryForm, setSalaryForm] = useState({ employee_id: '', basic_salary: '', effective_from: '' })
+  const [componentForm, setComponentForm] = useState({ employee_id: '', payroll_component_id: '', component_value: '', effective_from: '' })
+
+  useEffect(() => {
+    if (!canManagePayroll) return undefined
+    let isActive = true
+
+    Promise.all([
+      apiClient.get('/api/employees/get.php', { params: { status: 'Active', limit: 200 } }),
+      apiClient.get('/api/payroll/components.php'),
+    ])
+      .then(([employeesResponse, componentsResponse]) => {
+        if (!isActive) return
+        setEmployees(employeesResponse.data.data || [])
+        setPayrollComponents(componentsResponse.data.data || [])
+      })
+      .catch((requestError) => {
+        if (isActive) setEmployeesError(getErrorMessage(requestError, 'Active employees could not be loaded.'))
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [canManagePayroll])
 
   useEffect(() => {
     let isActive = true
@@ -77,6 +106,33 @@ function PayrollPage() {
   const handleItemChange = (event) => {
     const { name, value } = event.target
     setItemForm((previous) => ({ ...previous, [name]: value }))
+  }
+
+  const saveSalary = async (event) => {
+    event.preventDefault()
+    await runAction(
+      'salary',
+      () => apiClient.post('/api/employees/salary.php', {
+        employee_id: Number(salaryForm.employee_id),
+        basic_salary: salaryForm.basic_salary,
+        effective_from: salaryForm.effective_from,
+      }),
+      'Salary record saved. You can now create payroll for its effective period.',
+    )
+  }
+
+  const assignPayrollComponent = async (event) => {
+    event.preventDefault()
+    await runAction(
+      'component',
+      () => apiClient.post('/api/payroll/assign-component.php', {
+        employee_id: Number(componentForm.employee_id),
+        payroll_component_id: Number(componentForm.payroll_component_id),
+        component_value: componentForm.component_value,
+        effective_from: componentForm.effective_from,
+      }),
+      'Recurring payroll component assigned.',
+    )
   }
 
   const runAction = async (action, request, successMessage) => {
@@ -177,8 +233,6 @@ function PayrollPage() {
 
   const isBusy = Boolean(loadingAction)
   const isProcessed = payroll?.payroll_status === 'Processed'
-  const currentRole = JSON.parse(localStorage.getItem('hrms_user') || 'null')?.role_name
-  const canManagePayroll = ['Admin', 'HR'].includes(currentRole)
   const processedPayrolls = payrollRecords.filter((record) => record.payroll_status === 'Processed').length
   const draftPayrolls = payrollRecords.filter((record) => record.payroll_status === 'Draft').length
   const latestNetSalary = payrollRecords[0]?.net_salary
@@ -302,6 +356,38 @@ function PayrollPage() {
           )}
         </section>
 
+        {canManagePayroll && (
+          <section className="panel-surface mb-6 p-5 sm:p-6">
+            <div className="mb-5">
+              <p className="section-label">Pay setup</p>
+              <h2 className="mt-2 text-lg font-bold text-slate-900">Employee payroll information</h2>
+              <p className="mt-1 text-sm text-slate-600">Save salary and recurring allowances or deductions independently before generating a payroll period.</p>
+            </div>
+            <div className="grid gap-6 xl:grid-cols-2">
+              <form onSubmit={saveSalary} className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                <h3 className="font-semibold text-slate-900">Basic salary</h3>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <label className="sm:col-span-2"><span className="mb-2 block text-sm font-medium text-slate-700">Employee</span><EmployeeSelect employees={employees} value={salaryForm.employee_id} onChange={(value) => setSalaryForm((previous) => ({ ...previous, employee_id: value }))} /></label>
+                  <label><span className="mb-2 block text-sm font-medium text-slate-700">Monthly amount (ZMW)</span><input required min="0" step="0.01" type="number" value={salaryForm.basic_salary} onChange={(event) => setSalaryForm((previous) => ({ ...previous, basic_salary: event.target.value }))} className="field-input" /></label>
+                  <label><span className="mb-2 block text-sm font-medium text-slate-700">Effective from</span><input required type="date" value={salaryForm.effective_from} onChange={(event) => setSalaryForm((previous) => ({ ...previous, effective_from: event.target.value }))} className="field-input" /></label>
+                  <button type="submit" disabled={isBusy || employees.length === 0} className="action-button-primary sm:col-span-2">{loadingAction === 'salary' ? 'Saving salary...' : 'Save salary'}</button>
+                </div>
+              </form>
+
+              <form onSubmit={assignPayrollComponent} className="rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
+                <h3 className="font-semibold text-slate-900">Recurring allowance or deduction</h3>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <label className="sm:col-span-2"><span className="mb-2 block text-sm font-medium text-slate-700">Employee</span><EmployeeSelect employees={employees} value={componentForm.employee_id} onChange={(value) => setComponentForm((previous) => ({ ...previous, employee_id: value }))} /></label>
+                  <label><span className="mb-2 block text-sm font-medium text-slate-700">Component</span><select required value={componentForm.payroll_component_id} onChange={(event) => setComponentForm((previous) => ({ ...previous, payroll_component_id: event.target.value }))} className="field-input"><option value="">Select component</option>{payrollComponents.map((component) => <option key={component.payroll_component_id} value={component.payroll_component_id}>{component.component_type} · {component.component_name}</option>)}</select></label>
+                  <label><span className="mb-2 block text-sm font-medium text-slate-700">Value</span><input required min="0" step="0.01" type="number" value={componentForm.component_value} onChange={(event) => setComponentForm((previous) => ({ ...previous, component_value: event.target.value }))} className="field-input" /></label>
+                  <label className="sm:col-span-2"><span className="mb-2 block text-sm font-medium text-slate-700">Effective from</span><input required type="date" value={componentForm.effective_from} onChange={(event) => setComponentForm((previous) => ({ ...previous, effective_from: event.target.value }))} className="field-input" /></label>
+                  <button type="submit" disabled={isBusy || payrollComponents.length === 0} className="action-button-secondary sm:col-span-2">{loadingAction === 'component' ? 'Assigning component...' : 'Assign recurring component'}</button>
+                </div>
+              </form>
+            </div>
+          </section>
+        )}
+
         <section className="mb-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="panel-surface p-5 sm:p-6">
             <div className="mb-5">
@@ -315,17 +401,23 @@ function PayrollPage() {
             ) : (
             <form onSubmit={createPayroll} className="grid gap-4 sm:grid-cols-2">
               <label className="sm:col-span-2">
-                <span className="mb-2 block text-sm font-medium text-slate-700">Employee ID</span>
-                <input
+                <span className="mb-2 block text-sm font-medium text-slate-700">Employee</span>
+                <select
                   required
-                  min="1"
                   name="employee_id"
-                  type="number"
                   value={payrollForm.employee_id}
                   onChange={handlePayrollChange}
-                  placeholder="Enter an existing employee ID"
                   className="field-input"
-                />
+                  disabled={employees.length === 0}
+                >
+                  <option value="">{employeesError ? 'Employee list unavailable' : employees.length === 0 ? 'No active employees found' : 'Select employee'}</option>
+                  {employees.map((employee) => (
+                    <option key={employee.employee_id} value={employee.employee_id}>
+                      {employee.employee_number || `#${employee.employee_id}`} · {employee.first_name} {employee.last_name} · {employee.department_name || 'No department'}
+                    </option>
+                  ))}
+                </select>
+                {employeesError && <span className="mt-2 block text-sm text-red-600">{employeesError}</span>}
               </label>
               <label>
                 <span className="mb-2 block text-sm font-medium text-slate-700">Period start</span>
@@ -437,6 +529,22 @@ function PayrollPage() {
           </div>
         </section>
 
+        {payroll && payroll.payroll_status === 'Processed' && (
+          <section className="panel-surface mb-6 p-5 sm:p-6">
+            <div className="mb-5">
+              <p className="section-label">Attendance snapshot</p>
+              <h2 className="mt-2 text-lg font-bold text-slate-900">Recorded work hours for this payroll</h2>
+              <p className="mt-1 text-sm text-slate-600">These values are captured when payroll is processed. They do not automatically reduce salary.</p>
+            </div>
+            <dl className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <SummaryValue label="Expected hours" value={formatAmount(payroll.expected_hours)} />
+              <SummaryValue label="Hours worked" value={formatAmount(payroll.hours_worked)} />
+              <SummaryValue label="Overtime hours" value={formatAmount(payroll.overtime_hours)} />
+              <SummaryValue label="Shortfall hours" value={formatAmount(payroll.shortfall_hours)} />
+            </dl>
+          </section>
+        )}
+
         <section className="panel-surface p-5 sm:p-6">
           <div className="mb-5">
             <p className="section-label">Steps 3 and 4</p>
@@ -463,6 +571,19 @@ function SummaryValue({ label, value }) {
       <dt className="section-label">{label}</dt>
       <dd className="mt-2 text-base font-semibold text-slate-900">{value}</dd>
     </div>
+  )
+}
+
+function EmployeeSelect({ employees, value, onChange }) {
+  return (
+    <select required value={value} onChange={(event) => onChange(event.target.value)} disabled={employees.length === 0} className="field-input">
+      <option value="">{employees.length === 0 ? 'No active employees found' : 'Select employee'}</option>
+      {employees.map((employee) => (
+        <option key={employee.employee_id} value={employee.employee_id}>
+          {employee.employee_number || `#${employee.employee_id}`} · {employee.first_name} {employee.last_name}
+        </option>
+      ))}
+    </select>
   )
 }
 

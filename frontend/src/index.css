@@ -899,6 +899,129 @@
   gap: 0.75rem;
 }
 
+.notification-menu {
+  position: relative;
+}
+
+.notification-button {
+  position: relative;
+  display: grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  place-items: center;
+  border: 1px solid var(--nexa-border);
+  border-radius: 0.75rem;
+  background: #ffffff;
+  color: #6d7890;
+  cursor: pointer;
+}
+
+.notification-button:hover {
+  border-color: var(--nexa-blue);
+  color: var(--nexa-blue-deep);
+}
+
+.notification-button:focus-visible {
+  outline: 3px solid rgba(82, 105, 170, 0.25);
+  outline-offset: 2px;
+}
+
+.notification-button svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.notification-button > span {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.35rem;
+  display: grid;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding: 0 0.25rem;
+  place-items: center;
+  border: 2px solid var(--nexa-canvas);
+  border-radius: 999px;
+  background: #bd5f76;
+  color: #ffffff;
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+
+.notification-popover {
+  position: absolute;
+  top: calc(100% + 0.65rem);
+  right: 0;
+  z-index: 40;
+  width: min(21rem, calc(100vw - 2rem));
+  overflow: hidden;
+  border: 1px solid var(--nexa-border);
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 20px 45px rgba(31, 42, 68, 0.18);
+}
+
+.notification-popover__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.95rem 1rem;
+  border-bottom: 1px solid #edf0f6;
+}
+
+.notification-popover__heading strong {
+  color: var(--nexa-ink);
+  font-size: 0.82rem;
+}
+
+.notification-popover__heading small {
+  color: #8a93a6;
+  font-size: 0.7rem;
+}
+
+.notification-item {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.22rem;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid #f0f2f7;
+  background: #ffffff;
+  color: #58637a;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notification-item:hover {
+  background: #f8faff;
+}
+
+.notification-item--unread {
+  border-left: 3px solid var(--nexa-blue-deep);
+  background: #f7f9ff;
+}
+
+.notification-item span {
+  color: #37425b;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.notification-item small,
+.notification-empty {
+  color: #8a93a6;
+  font-size: 0.66rem;
+  text-transform: capitalize;
+}
+
+.notification-empty {
+  margin: 0;
+  padding: 1.4rem 1rem;
+  text-align: center;
+}
+
 .session-chip {
   display: inline-flex;
   align-items: center;

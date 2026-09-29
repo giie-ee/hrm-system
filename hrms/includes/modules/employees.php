@@ -17,6 +17,7 @@ if ($action==='get') {
     if (isset($b['search'])) { $search=textValue($b['search'],'search',100); $where.=' AND (e.first_name LIKE ? OR e.last_name LIKE ? OR e.employee_number LIKE ?)'; array_push($params,"%$search%","%$search%","%$search%"); }
     if (isset($b['department_id'])) { $where.=' AND e.department_id=?'; $params[]=id($b['department_id']); }
     if (isset($b['status'])) { $where.=' AND e.employment_status=?'; $params[]=choice($b['status'],['Active','Inactive','Suspended','Terminated']); }
+    if (isset($b['employment_type'])) { $where.=' AND e.employment_type=?'; $params[]=choice($b['employment_type'],['Full-Time','Part-Time','Contract','Temporary'],'employment_type'); }
     $fields=isAdminOrHR() ? 'e.*' : 'e.employee_id,e.employee_number,e.first_name,e.last_name,e.email,e.department_id,e.position_id,e.employment_type,e.employment_status';
     reply(rows("SELECT $fields,d.department_name,p.position_name FROM employees e JOIN departments d ON d.department_id=e.department_id JOIN positions p ON p.position_id=e.position_id WHERE $where ORDER BY e.employee_id".pageLimit(),$params));
 }
