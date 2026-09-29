@@ -33,7 +33,7 @@ database.
 After running the migrations, confirm that the newest file was recorded:
 
 ```sql
-SELECT filename, applied_at
+SELECT version, applied_at
 FROM schema_migrations
 ORDER BY applied_at;
 ```

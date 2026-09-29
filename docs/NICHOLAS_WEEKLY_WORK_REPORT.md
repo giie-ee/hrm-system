@@ -135,7 +135,7 @@ The new tables and columns do not exist in Neon until the pending migration is r
 On Render, redeploy the service after the updated code is pushed. Check the migration record with:
 
 ```sql
-SELECT filename, applied_at
+SELECT version, applied_at
 FROM schema_migrations
 ORDER BY applied_at;
 ```
