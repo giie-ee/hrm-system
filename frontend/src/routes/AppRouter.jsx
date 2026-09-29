@@ -10,6 +10,7 @@ import LeavePage from '../pages/LeavePage'
 import LoginPage from '../pages/LoginPage'
 import PayrollPage from '../pages/PayrollPage'
 import PayslipPage from '../pages/PayslipPage'
+import ReportsPage from '../pages/ReportsPage'
 import RoleDashboard from '../pages/RoleDashboard'
 
 function ProtectedRoute({ children }) {
@@ -77,6 +78,7 @@ function AppRouter() {
       <Route path="/attendance" element={<ProtectedRoute><RoleProtectedRoute allowedRoles={['Admin', 'HR', 'Manager', 'Employee']}><AttendancePage /></RoleProtectedRoute></ProtectedRoute>} />
       <Route path="/payroll" element={<ProtectedRoute><PayrollPage /></ProtectedRoute>} />
       <Route path="/payslip" element={<ProtectedRoute><PayslipPage /></ProtectedRoute>} />
+      <Route path="/reports" element={<ProtectedRoute><RoleProtectedRoute allowedRoles={['Admin', 'HR']}><ReportsPage /></RoleProtectedRoute></ProtectedRoute>} />
     </Routes>
   )
 }

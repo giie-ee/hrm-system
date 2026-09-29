@@ -146,6 +146,7 @@ function WorkspaceDashboard({
   summary,
   statusLabel,
   modules,
+  insights,
   onSignOut,
 }) {
   const [notifications, setNotifications] = useState([])
@@ -292,6 +293,8 @@ function WorkspaceDashboard({
               </article>
             ))}
           </section>
+
+          {insights && <div className="mb-6">{insights}</div>}
 
           <div className="workspace-grid">
             <section className="workspace-panel workspace-panel--modules">
