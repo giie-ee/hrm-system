@@ -35,8 +35,21 @@ if ($action==='create' || $action==='update') {
         audit('onboarding.saved','onboarding',$id,['status'=>$status]); return $id;
     }); reply(record('onboarding','onboarding_id',$id),'Onboarding saved.',$action==='create'?201:200);
 }
+function documentCatalog(): array {
+    // [document name, document type] - drives the "request a document" dropdowns.
+    return [['National ID / NRC copy','Identification'],['Passport photo','Identification'],['Proof of address','Identification'],
+        ['Bank account details','Financial'],['Tax (TPIN) certificate','Financial'],['NAPSA / social security card','Financial'],
+        ['Academic certificates','Qualification'],['Professional certificates','Qualification'],
+        ['Curriculum vitae (CV)','Employment'],['Reference letter','Employment'],['Previous employment letter','Employment'],
+        ['Signed employment contract','Legal'],['Police clearance','Legal'],['Medical certificate','Medical']];
+}
+function documentTypes(): array { return ['Identification','Financial','Qualification','Employment','Legal','Medical','Other']; }
+if ($action==='document-types') {
+    requireLogin();
+    reply(['types'=>documentTypes(),'documents'=>array_map(fn($d)=>['document_name'=>$d[0],'document_type'=>$d[1]],documentCatalog())]);
+}
 if ($action==='request-document') {
-    requireRole(['Admin','HR']); $oid=id($b['onboarding_id']??null); $name=textValue($b['document_name']??null,'document_name',150); $type=textValue($b['document_type']??'','document_type',100,false);
+    requireRole(['Admin','HR']); $oid=id($b['onboarding_id']??null); $name=textValue($b['document_name']??null,'document_name',150); $type=choice($b['document_type']??'Other',documentTypes(),'document_type');
     $id=transaction(function() use($oid,$name,$type) { $o=record('onboarding','onboarding_id',$oid,true); if ($o['onboarding_status']==='Completed') fail(409,'Onboarding is completed.'); if (one('SELECT document_id FROM onboarding_documents WHERE onboarding_id=? AND document_name=?',[$oid,$name])) fail(409,'Document request already exists.');
         query('INSERT INTO onboarding_documents(onboarding_id,document_name,document_type) VALUES (?,?,?)',[$oid,$name,$type]); $id=inserted(); audit('document.requested','onboarding_documents',$id); notifyEmployee((int)$o['employee_id'],'Onboarding document requested','onboarding_documents',$id); return $id;
     }); reply(['document_id'=>$id],'Document requested.',201);
