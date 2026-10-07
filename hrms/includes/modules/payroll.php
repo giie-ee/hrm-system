@@ -24,6 +24,44 @@ if ($action==='get-items') {
     reply($items,'Payroll items retrieved successfully.',200,['payroll_id'=>$id,'items'=>$items,'total_items'=>count($items)]);
 }
 requireRole(['Admin','HR']);
+if ($action==='position-bands') {
+    $guidelines=rows(
+        "SELECT g.salary_guideline_id,g.position_id,p.position_name,d.department_name,"
+        . "g.recommended_basic_salary,g.currency,g.effective_from,g.effective_to,g.status,g.notes,"
+        . "COUNT(e.employee_id) employee_count "
+        . "FROM position_salary_guidelines g "
+        . "JOIN positions p ON p.position_id=g.position_id "
+        . "JOIN departments d ON d.department_id=p.department_id "
+        . "LEFT JOIN employees e ON e.position_id=p.position_id AND e.employment_status='Active' "
+        . "WHERE g.status='Active' AND g.effective_from<=CURRENT_DATE "
+        . "AND (g.effective_to IS NULL OR g.effective_to>=CURRENT_DATE) "
+        . "GROUP BY g.salary_guideline_id,p.position_name,d.department_name "
+        . "ORDER BY d.department_name,p.position_name"
+    );
+    reply($guidelines,'Position salary guidelines retrieved.');
+}
+if ($action==='salary-overview') {
+    $overview=rows(
+        "SELECT e.employee_id,e.employee_number,CONCAT(e.first_name,' ',e.last_name) employee_name,"
+        . "d.department_name,p.position_name,s.basic_salary,s.currency,s.effective_from,"
+        . "g.recommended_basic_salary,g.currency guideline_currency "
+        . "FROM employees e "
+        . "JOIN departments d ON d.department_id=e.department_id "
+        . "JOIN positions p ON p.position_id=e.position_id "
+        . "LEFT JOIN LATERAL ("
+        . "SELECT es.basic_salary,es.currency,es.effective_from FROM employee_salaries es "
+        . "WHERE es.employee_id=e.employee_id AND es.salary_status='Active' "
+        . "AND es.effective_from<=CURRENT_DATE AND (es.effective_to IS NULL OR es.effective_to>=CURRENT_DATE) "
+        . "ORDER BY es.effective_from DESC LIMIT 1) s ON TRUE "
+        . "LEFT JOIN LATERAL ("
+        . "SELECT pg.recommended_basic_salary,pg.currency FROM position_salary_guidelines pg "
+        . "WHERE pg.position_id=e.position_id AND pg.status='Active' "
+        . "AND pg.effective_from<=CURRENT_DATE AND (pg.effective_to IS NULL OR pg.effective_to>=CURRENT_DATE) "
+        . "ORDER BY pg.effective_from DESC LIMIT 1) g ON TRUE "
+        . "WHERE e.employment_status='Active' ORDER BY d.department_name,p.position_name,e.last_name,e.first_name"
+    );
+    reply($overview,'Employee salary overview retrieved.');
+}
 if ($action==='components') {
     reply(rows("SELECT * FROM payroll_components WHERE status='Active' ORDER BY component_type,component_name"),'Payroll components retrieved.');
 }

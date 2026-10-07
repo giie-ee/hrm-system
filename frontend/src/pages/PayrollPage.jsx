@@ -40,6 +40,8 @@ function PayrollPage() {
   const [employees, setEmployees] = useState([])
   const [employeesError, setEmployeesError] = useState('')
   const [payrollComponents, setPayrollComponents] = useState([])
+  const [salaryGuidelines, setSalaryGuidelines] = useState([])
+  const [salaryOverview, setSalaryOverview] = useState([])
   const [salaryForm, setSalaryForm] = useState({ employee_id: '', basic_salary: '', effective_from: '' })
   const [componentForm, setComponentForm] = useState({ employee_id: '', payroll_component_id: '', component_value: '', effective_from: '' })
 
@@ -50,11 +52,15 @@ function PayrollPage() {
     Promise.all([
       apiClient.get('/api/employees/get.php', { params: { status: 'Active', limit: 200 } }),
       apiClient.get('/api/payroll/components.php'),
+      apiClient.get('/api/payroll/position-bands.php'),
+      apiClient.get('/api/payroll/salary-overview.php'),
     ])
-      .then(([employeesResponse, componentsResponse]) => {
+      .then(([employeesResponse, componentsResponse, guidelinesResponse, overviewResponse]) => {
         if (!isActive) return
         setEmployees(employeesResponse.data.data || [])
         setPayrollComponents(componentsResponse.data.data || [])
+        setSalaryGuidelines(guidelinesResponse.data.data || [])
+        setSalaryOverview(overviewResponse.data.data || [])
       })
       .catch((requestError) => {
         if (isActive) setEmployeesError(getErrorMessage(requestError, 'Active employees could not be loaded.'))
@@ -355,6 +361,18 @@ function PayrollPage() {
             </div>
           )}
         </section>
+
+        {canManagePayroll && (
+          <section className="panel-surface mb-6 p-5 sm:p-6">
+            <div className="mb-5">
+              <p className="section-label">Demonstration policy</p>
+              <h2 className="mt-2 text-lg font-bold text-slate-900">Position salary guidelines</h2>
+              <p className="mt-1 text-sm text-slate-600">These are proposed monthly ZMW starting figures, not actual employee salary records. HR must still save each employee&apos;s approved salary below.</p>
+            </div>
+            {salaryGuidelines.length === 0 ? <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">No active position salary guidelines are available.</p> : <div className="overflow-x-auto rounded-xl border border-slate-200"><table className="min-w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500"><tr><th className="px-4 py-3">Department</th><th className="px-4 py-3">Position</th><th className="px-4 py-3">Monthly guideline</th><th className="px-4 py-3">Active employees</th></tr></thead><tbody className="divide-y divide-slate-200">{salaryGuidelines.map((guideline) => <tr key={guideline.salary_guideline_id} className="bg-white"><td className="px-4 py-3 text-slate-700">{guideline.department_name}</td><td className="px-4 py-3 font-medium text-slate-900">{guideline.position_name}</td><td className="px-4 py-3 text-slate-700">{guideline.currency} {formatAmount(guideline.recommended_basic_salary)}</td><td className="px-4 py-3 text-slate-700">{guideline.employee_count}</td></tr>)}</tbody></table></div>}
+            <div className="mt-6"><h3 className="font-semibold text-slate-900">Current employee salaries compared with the guideline</h3><p className="mt-1 text-sm text-slate-600">This makes placeholder or missing employee salary records visible without automatically changing them.</p>{salaryOverview.length === 0 ? <p className="mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">No active employees are available.</p> : <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200"><table className="min-w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500"><tr><th className="px-4 py-3">Employee</th><th className="px-4 py-3">Position</th><th className="px-4 py-3">Current salary</th><th className="px-4 py-3">Guideline</th></tr></thead><tbody className="divide-y divide-slate-200">{salaryOverview.map((employee) => <tr key={employee.employee_id} className="bg-white"><td className="px-4 py-3"><p className="font-medium text-slate-900">{employee.employee_name}</p><p className="text-xs text-slate-500">{employee.employee_number || `Employee #${employee.employee_id}`}</p></td><td className="px-4 py-3 text-slate-700">{employee.position_name}</td><td className="px-4 py-3 text-slate-700">{employee.basic_salary === null ? 'Not set' : `${employee.currency || 'ZMW'} ${formatAmount(employee.basic_salary)}`}</td><td className="px-4 py-3 text-slate-700">{employee.recommended_basic_salary === null ? 'Not configured' : `${employee.guideline_currency || 'ZMW'} ${formatAmount(employee.recommended_basic_salary)}`}</td></tr>)}</tbody></table></div>}</div>
+          </section>
+        )}
 
         {canManagePayroll && (
           <section className="panel-surface mb-6 p-5 sm:p-6">

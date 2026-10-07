@@ -6,6 +6,7 @@ header("Content-Type: application/json");
 
 require_once "../../config/database.php";
 require_once "../../includes/auth.php";
+require_once "../../lib/LeavePolicy.php";
 
 requireLogin();
 
@@ -248,6 +249,8 @@ try {
         SELECT
             leave_type_id,
             leave_name,
+            max_requests_per_year,
+            max_consecutive_days,
             status
         FROM leave_types
         WHERE leave_type_id = ?
@@ -322,6 +325,59 @@ try {
             "message" => "A leave request cannot span across two calendar years."
         ]);
 
+        exit;
+    }
+
+
+    /*
+     * Apply the configured request-frequency and per-request duration limits.
+     * Rejected and Cancelled requests do not consume an annual request slot.
+     */
+    $request_count_stmt = $conn->prepare("
+        SELECT COUNT(*) AS request_count
+        FROM leave_requests
+        WHERE employee_id = ?
+          AND leave_type_id = ?
+          AND status IN ('Pending', 'Approved')
+          AND start_date BETWEEN ? AND ?
+    ");
+
+    if (!$request_count_stmt) {
+        throw new Exception("Failed to prepare leave policy usage query.");
+    }
+
+    $year_start = sprintf('%04d-01-01', $start_year);
+    $year_end = sprintf('%04d-12-31', $start_year);
+    $request_count_stmt->bind_param("iiss", $employee_id, $leave_type_id, $year_start, $year_end);
+    $request_count_stmt->execute();
+    $request_count_row = $request_count_stmt->get_result()->fetch_assoc();
+    $existing_requests = (int)($request_count_row['request_count'] ?? 0);
+    $max_requests = $leave_type['max_requests_per_year'] !== null
+        ? (int)$leave_type['max_requests_per_year']
+        : null;
+    $max_consecutive = $leave_type['max_consecutive_days'] !== null
+        ? (int)$leave_type['max_consecutive_days']
+        : null;
+    $policy_violation = LeavePolicy::violation(
+        $number_of_days,
+        $max_consecutive,
+        $existing_requests,
+        $max_requests
+    );
+
+    if ($policy_violation !== null) {
+        http_response_code(409);
+        echo json_encode([
+            "success" => false,
+            "message" => $policy_violation,
+            "data" => [
+                "requested_days" => $number_of_days,
+                "requests_used_this_year" => $existing_requests,
+                "max_requests_per_year" => $max_requests,
+                "max_consecutive_days" => $max_consecutive,
+                "leave_name" => $leave_type["leave_name"]
+            ]
+        ]);
         exit;
     }
 

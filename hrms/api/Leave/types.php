@@ -41,6 +41,9 @@ try {
             leave_name,
             description,
             default_days,
+            max_requests_per_year,
+            max_consecutive_days,
+            policy_notes,
             status
         FROM leave_types
         WHERE status = 'Active'
@@ -70,6 +73,9 @@ try {
             "leave_name" => $row["leave_name"],
             "description" => $row["description"],
             "default_days" => (int)$row["default_days"],
+            "max_requests_per_year" => $row["max_requests_per_year"] !== null ? (int)$row["max_requests_per_year"] : null,
+            "max_consecutive_days" => $row["max_consecutive_days"] !== null ? (int)$row["max_consecutive_days"] : null,
+            "policy_notes" => $row["policy_notes"],
             "status" => $row["status"]
         ];
     }

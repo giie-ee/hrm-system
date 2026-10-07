@@ -82,8 +82,10 @@ function LeavePage() {
       await action()
       setSuccess(message)
       await loadData()
+      return true
     } catch (requestError) {
       setError(getErrorMessage(requestError, 'The leave request could not be completed.'))
+      return false
     } finally {
       setSubmitting(false)
     }
@@ -91,11 +93,11 @@ function LeavePage() {
 
   const submitRequest = async (event) => {
     event.preventDefault()
-    await runAction(
+    const submitted = await runAction(
       () => apiClient.post('/api/Leave/request.php', form),
       'Leave request submitted successfully.',
     )
-    setForm(initialForm)
+    if (submitted) setForm(initialForm)
   }
 
   const cancelRequest = (leaveRequestId) => runAction(
@@ -115,6 +117,10 @@ function LeavePage() {
 
     return runAction(() => action, approved ? 'Leave request approved successfully.' : 'Leave request rejected successfully.')
   }
+
+  const selectedLeaveType = leaveTypes.find(
+    (type) => String(type.leave_type_id) === String(form.leave_type_id),
+  )
 
   return (
     <main className="min-h-screen bg-slate-100 p-4 sm:p-6 lg:p-8">
@@ -178,6 +184,7 @@ function LeavePage() {
             <h2 className="text-lg font-bold text-slate-900">Request leave</h2>
             <form onSubmit={submitRequest} className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className="sm:col-span-2"><span className="mb-2 block text-sm font-medium text-slate-700">Leave type</span><select required name="leave_type_id" value={form.leave_type_id} onChange={handleChange} className="field-input"><option value="">Select leave type</option>{leaveTypes.map((type) => <option key={type.leave_type_id} value={type.leave_type_id}>{type.leave_name}</option>)}</select></label>
+              {selectedLeaveType && <div className="sm:col-span-2 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900"><p className="font-semibold">Demonstration leave policy</p><p className="mt-1">Annual allowance: {selectedLeaveType.default_days} days · Requests per year: {selectedLeaveType.max_requests_per_year ?? 'Not limited'} · Maximum consecutive days: {selectedLeaveType.max_consecutive_days ?? 'Not limited'}</p>{selectedLeaveType.policy_notes && <p className="mt-2 text-xs text-sky-800">{selectedLeaveType.policy_notes}</p>}</div>}
               <label><span className="mb-2 block text-sm font-medium text-slate-700">Start date</span><input required name="start_date" type="date" value={form.start_date} onChange={handleChange} className="field-input" /></label>
               <label><span className="mb-2 block text-sm font-medium text-slate-700">End date</span><input required name="end_date" type="date" value={form.end_date} onChange={handleChange} className="field-input" /></label>
               <label className="sm:col-span-2"><span className="mb-2 block text-sm font-medium text-slate-700">Reason</span><textarea name="reason" value={form.reason} onChange={handleChange} maxLength="5000" rows="3" className="field-input" /></label>

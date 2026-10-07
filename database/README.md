@@ -19,6 +19,9 @@ document requests, and tables for the onboarding form and progress tracker. See
 envelope and a database constraint that prevents ordinary onboarding JSON from
 containing plaintext bank names or account numbers. The startup backfill command
 converts any legacy rows before Apache starts.
+`postgresql/007_nicholas_leave_salary_policy.sql` adds editable leave request
+limits and separate position-based salary guidelines without overwriting active
+employee salary records. See `docs/NICHOLAS_LEAVE_SALARY_POLICY.md`.
 
 The second migration expands the core employee model and adds departments,
 positions, manager assignments, benefits, onboarding/documents, performance,
