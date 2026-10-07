@@ -41,6 +41,65 @@ if ($action==='request-document') {
         query('INSERT INTO onboarding_documents(onboarding_id,document_name,document_type) VALUES (?,?,?)',[$oid,$name,$type]); $id=inserted(); audit('document.requested','onboarding_documents',$id); notifyEmployee((int)$o['employee_id'],'Onboarding document requested','onboarding_documents',$id); return $id;
     }); reply(['document_id'=>$id],'Document requested.',201);
 }
+function onboardingFormFields(): array {
+    // field => [required, max length]
+    return ['phone'=>[true,30],'address'=>[true,300],'emergency_contact_name'=>[true,100],'emergency_contact_phone'=>[true,30],
+        'emergency_contact_relationship'=>[true,50],'bank_name'=>[true,100],'bank_account_number'=>[true,40],
+        'tax_number'=>[false,30],'national_id'=>[false,50],'next_of_kin_name'=>[false,100]];
+}
+if ($action==='form-get') {
+    requireLogin(); $params=[]; $where=scope('o.employee_id',$params);
+    if (isset($b['employee_id']) && $b['employee_id']!=='') { $employee=id($b['employee_id'],'employee_id'); requireEmployeeAccess($employee); $where.=' AND o.employee_id=?'; $params[]=$employee; }
+    if (isset($b['status']) && $b['status']!=='') { $where.=" AND COALESCE(f.status,'Pending')=?"; $params[]=choice($b['status'],['Pending','Submitted','Approved','Rejected'],'status'); }
+    $forms=rows("SELECT o.onboarding_id,o.employee_id,CONCAT(e.first_name,' ',e.last_name) employee_name,o.onboarding_status,f.form_id,"
+        ."COALESCE(f.status,'Pending') form_status,f.form_data,f.submitted_at,f.reviewed_by,f.reviewed_at,f.rejection_reason "
+        ."FROM onboarding o JOIN employees e ON e.employee_id=o.employee_id LEFT JOIN onboarding_forms f ON f.onboarding_id=o.onboarding_id "
+        ."WHERE $where ORDER BY o.onboarding_id DESC".pageLimit(),$params);
+    foreach ($forms as &$f) { $f['form_data']=$f['form_data']!==null?(json_decode((string)$f['form_data'],true)?:new stdClass()):new stdClass(); } unset($f);
+    reply(['fields'=>array_map(fn($rule)=>['required'=>$rule[0],'max_length'=>$rule[1]],onboardingFormFields()),'forms'=>$forms]);
+}
+if ($action==='form-submit') {
+    requireLogin(); $employee=ownEmployee();
+    $o=one("SELECT * FROM onboarding WHERE employee_id=? AND onboarding_status<>'Completed' ORDER BY onboarding_id DESC LIMIT 1",[$employee])
+        ?? fail(404,'No open onboarding record exists. Ask HR to start your onboarding.');
+    $data=[]; foreach (onboardingFormFields() as $field=>[$required,$max]) { $data[$field]=textValue($b[$field]??'',$field,$max,$required); }
+    foreach (['phone','emergency_contact_phone'] as $field) { if (!preg_match('/^[0-9+()\- ]{7,30}$/D',$data[$field])) fail(400,"{$field} is not a valid phone number."); }
+    if (!preg_match('/^[0-9A-Za-z\- ]{4,40}$/D',$data['bank_account_number'])) fail(400,'bank_account_number is not valid.');
+    $formId=transaction(function() use($o,$employee,$data) {
+        $onboarding=record('onboarding','onboarding_id',(int)$o['onboarding_id'],true);
+        if ($onboarding['onboarding_status']==='Completed') fail(409,'Onboarding is completed.');
+        $existing=one('SELECT form_id,status FROM onboarding_forms WHERE onboarding_id=? FOR UPDATE',[(int)$o['onboarding_id']]);
+        if ($existing && in_array($existing['status'],['Submitted','Approved'],true)) fail(409,'This form is already '.strtolower($existing['status']).' and cannot be changed.');
+        query("INSERT INTO onboarding_forms(onboarding_id,employee_id,form_data,status,submitted_at) VALUES (?,?,?,'Submitted',NOW()) "
+            ."ON CONFLICT (onboarding_id) DO UPDATE SET form_data=EXCLUDED.form_data,status='Submitted',submitted_at=NOW(),reviewed_by=NULL,reviewed_at=NULL,rejection_reason=NULL",
+            [(int)$o['onboarding_id'],$employee,json_encode($data,JSON_THROW_ON_ERROR)]);
+        $id=$existing?(int)$existing['form_id']:inserted();
+        audit('onboarding.form-submitted','onboarding_forms',$id);
+        notifyHR('Onboarding form submitted','onboarding_forms',$id);
+        query("INSERT INTO notifications (user_id,title,entity,entity_id) SELECT u.user_id,?,?,? FROM manager_assignments ma JOIN users u ON u.employee_id=ma.manager_employee_id "
+            ."WHERE ma.employee_id=? AND ma.status='Active' AND u.account_status='Active'",['Onboarding form submitted','onboarding_forms',$id,$employee]);
+        return $id;
+    });
+    reply(['form_id'=>$formId,'form_status'=>'Submitted'],'Onboarding form submitted for approval.',201);
+}
+if ($action==='form-review') {
+    requireRole(['Admin','HR','Manager']);
+    $formId=id($b['form_id']??null,'form_id'); $decision=choice($b['status']??null,['Approved','Rejected']);
+    $reason=textValue($b['reason']??'','reason',5000,$decision==='Rejected');
+    $form=record('onboarding_forms','form_id',$formId); requireReviewer((int)$form['employee_id']);
+    transaction(function() use($formId,$decision,$reason) {
+        $f=record('onboarding_forms','form_id',$formId,true);
+        if ($f['status']!=='Submitted') fail(409,'Only submitted forms can be reviewed.');
+        query('UPDATE onboarding_forms SET status=?,reviewed_by=?,reviewed_at=NOW(),rejection_reason=? WHERE form_id=?',[$decision,(int)$_SESSION['user_id'],$decision==='Rejected'?$reason:null,$formId]);
+        if ($decision==='Approved') {
+            $data=json_decode((string)$f['form_data'],true)?:[]; $employee=(int)$f['employee_id'];
+            query('UPDATE employees SET phone=?,address=? WHERE employee_id=?',[(string)($data['phone']??''),(string)($data['address']??''),$employee]);
+            if (!empty($data['national_id'])) query('UPDATE employees SET national_id=? WHERE employee_id=? AND national_id IS NULL AND NOT EXISTS (SELECT 1 FROM employees x WHERE x.national_id=?)',[$data['national_id'],$employee,$data['national_id']]);
+        }
+        audit('onboarding.form-'.strtolower($decision),'onboarding_forms',$formId); notifyEmployee((int)$f['employee_id'],'Onboarding form '.strtolower($decision),'onboarding_forms',$formId);
+    });
+    reply(['form_id'=>$formId,'form_status'=>$decision],'Onboarding form '.strtolower($decision).'.');
+}
 $id=id($b['document_id']??null); $doc=record('onboarding_documents','document_id',$id); $o=record('onboarding','onboarding_id',(int)$doc['onboarding_id']); onboardingAccess($o);
 if ($action==='history') reply(rows('SELECT status,reason,changed_by,created_at FROM document_history WHERE document_id=? ORDER BY history_id'.pageLimit(),[$id]));
 if ($action==='download') {

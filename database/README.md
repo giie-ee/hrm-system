@@ -11,6 +11,10 @@ employee defaults and baseline leave-type names identified during role testing.
 current-year leave balances, departments, positions, benefits and placeholder
 salaries so forms such as leave requests can be submitted. Replace the figures
 with approved values before production use.
+`postgresql/005_review_fixes_onboarding_progress.sql` applies the testing-review
+fixes: attendance schedule (09:15 cut-off, half-day Fri-Sun), default onboarding
+document requests, and tables for the onboarding form and progress tracker. See
+`docs/TESTING_REVIEW_FIXES.md`.
 
 The second migration expands the core employee model and adds departments,
 positions, manager assignments, benefits, onboarding/documents, performance,

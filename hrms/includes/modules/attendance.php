@@ -4,7 +4,7 @@ $body = HRMS_METHOD === 'POST' ? input() : $_GET;
 
 function attendanceStatusValues(): array
 {
-    return ['Present', 'Absent', 'Late', 'Half-Day', 'Early Checkout', 'On Leave', 'Off Schedule'];
+    return ['Present', 'Absent', 'Late', 'Present (Half Day)', 'Late (Half Day)', 'Half-Day', 'Early Checkout', 'On Leave', 'Off Schedule'];
 }
 
 function attendanceTimeMinutes(?string $time): ?int
@@ -54,7 +54,43 @@ function attendancePolicy(int $employeeId, string $date): array
 
     if (!$policy) fail(409, 'No working-hour policy is assigned to this employee.');
     $policy['is_working_day'] = filter_var($policy['is_working_day'], FILTER_VALIDATE_BOOLEAN);
+    // A scheduled day no longer than the half-day threshold is a half-day schedule.
+    $policy['is_half_day'] = $policy['is_working_day']
+        && (float) $policy['expected_hours'] <= (float) $policy['minimum_half_day_hours'];
     return $policy;
+}
+
+/**
+ * Marks employees with approved leave as 'On Leave' once the working day has
+ * ended (17:00 policy time). There is no scheduler on the host, so this runs
+ * whenever attendance is read or a check-in happens; it is idempotent and also
+ * back-fills the previous 30 days.
+ */
+function attendanceSyncApprovedLeave(): void
+{
+    try {
+        $policy = one("SELECT timezone FROM work_policies WHERE status='Active' ORDER BY work_policy_id LIMIT 1");
+        if (!$policy) return;
+        $now = new DateTimeImmutable('now', new DateTimeZone((string) $policy['timezone']));
+        $last = $now->format('H:i') >= '17:00' ? $now : $now->modify('-1 day');
+        $first = $now->modify('-30 days');
+        query(
+            "INSERT INTO attendance(employee_id,attendance_date,hours_worked,status,notes,scheduled_start,scheduled_end,"
+            . "expected_hours,attendance_source,verification_status) "
+            . "SELECT lr.employee_id,d.day::date,0,'On Leave','Automatically marked from approved leave.',"
+            . "wpd.start_time,wpd.end_time,wpd.expected_hours,'System','Manager Confirmed' "
+            . "FROM generate_series(CAST(? AS DATE),CAST(? AS DATE),INTERVAL '1 day') AS d(day) "
+            . "JOIN leave_requests lr ON lr.status='Approved' AND d.day::date BETWEEN lr.start_date AND lr.end_date "
+            . "JOIN employees e ON e.employee_id=lr.employee_id AND e.employment_status='Active' "
+            . "JOIN work_policy_days wpd ON wpd.work_policy_id=COALESCE(e.work_policy_id,"
+            . "(SELECT work_policy_id FROM work_policies WHERE status='Active' ORDER BY work_policy_id LIMIT 1)) "
+            . "AND wpd.day_of_week=EXTRACT(DOW FROM d.day)::INTEGER AND wpd.is_working_day "
+            . "ON CONFLICT (employee_id,attendance_date) DO NOTHING",
+            [$first->format('Y-m-d'), $last->format('Y-m-d')]
+        );
+    } catch (Throwable $exception) {
+        error_log('Leave attendance sync failed: ' . $exception->getMessage());
+    }
 }
 
 function attendanceRecordResponse(array $record): array
@@ -84,6 +120,7 @@ if ($action === 'policy') {
 
 if ($action === 'get') {
     requireLogin();
+    attendanceSyncApprovedLeave();
     $params = [];
     $where = scope('a.employee_id', $params);
 
@@ -116,6 +153,7 @@ if ($action === 'get') {
 
 if ($action === 'check-in') {
     requireRole(['Employee']);
+    attendanceSyncApprovedLeave();
     $employeeId = ownEmployee();
     $now = new DateTimeImmutable('now', attendanceTimezone($employeeId));
     $date = $now->format('Y-m-d');
@@ -135,7 +173,7 @@ if ($action === 'check-in') {
             $scheduled = attendanceTimeMinutes((string) $policy['start_time']);
             $actual = attendanceTimeMinutes($checkIn);
             $lateMinutes = max(0, (int) $actual - ((int) $scheduled + (int) $policy['grace_minutes']));
-            $status = $lateMinutes > 0 ? 'Late' : 'Present';
+            $status = ($lateMinutes > 0 ? 'Late' : 'Present') . ($policy['is_half_day'] ? ' (Half Day)' : '');
         }
 
         query(
@@ -200,11 +238,11 @@ if ($action === 'check-out') {
             if ($hoursWorked < (float) $policy['minimum_half_day_hours']) {
                 $status = 'Half-Day';
             } elseif ((int) $attendance['late_minutes'] > 0) {
-                $status = 'Late';
+                $status = $policy['is_half_day'] ? 'Late (Half Day)' : 'Late';
             } elseif ($earlyMinutes > 0) {
                 $status = 'Early Checkout';
             } else {
-                $status = 'Present';
+                $status = $policy['is_half_day'] ? 'Present (Half Day)' : 'Present';
             }
         }
 

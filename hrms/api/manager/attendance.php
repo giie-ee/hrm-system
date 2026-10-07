@@ -215,6 +215,8 @@ $allowed_statuses = [
     "Present",
     "Absent",
     "Late",
+    "Present (Half Day)",
+    "Late (Half Day)",
     "Half-Day",
     "On Leave"
 ];
@@ -511,6 +513,7 @@ try {
         switch ($attendance["status"]) {
 
             case "Present":
+            case "Present (Half Day)":
                 $summary["present"]++;
                 break;
 
@@ -519,6 +522,7 @@ try {
                 break;
 
             case "Late":
+            case "Late (Half Day)":
                 $summary["late"]++;
                 break;
 

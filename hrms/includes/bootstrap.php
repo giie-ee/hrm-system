@@ -73,8 +73,9 @@ if (!$public && time() - (int) ($_SESSION['last_activity'] ?? time()) > 1800) {
 if ($expectedMethod === 'POST') {
     $body = input();
     foreach ($body as $key => $value) {
-        if (str_ends_with((string) $key, '_id') && $value !== null) id($value, (string) $key);
-        if (is_array($value) && !in_array($key, ['ratings'], true)) fail(400, 'Unexpected structured input.');
+        // national_id is a free-text government identifier (e.g. 123456/78/1), not a database ID.
+        if (str_ends_with((string) $key, '_id') && $key !== 'national_id' && $value !== null) id($value, (string) $key);
+        if (is_array($value) && !in_array($key, ['ratings', 'milestones'], true)) fail(400, 'Unexpected structured input.');
     }
     if (!$public && (!isset($_SERVER['HTTP_X_CSRF_TOKEN'], $_SESSION['csrf_token'])
         || !hash_equals((string) $_SESSION['csrf_token'], (string) $_SERVER['HTTP_X_CSRF_TOKEN']))) {

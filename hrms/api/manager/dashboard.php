@@ -76,9 +76,9 @@ try {
     $stmt = $conn->prepare("
         SELECT
             COUNT(a.attendance_id) AS total_records,
-            SUM(CASE WHEN a.status = 'Present' THEN 1 ELSE 0 END) AS present,
+            SUM(CASE WHEN a.status IN ('Present','Present (Half Day)') THEN 1 ELSE 0 END) AS present,
             SUM(CASE WHEN a.status = 'Absent' THEN 1 ELSE 0 END) AS absent,
-            SUM(CASE WHEN a.status = 'Late' THEN 1 ELSE 0 END) AS late,
+            SUM(CASE WHEN a.status IN ('Late','Late (Half Day)') THEN 1 ELSE 0 END) AS late,
             SUM(CASE WHEN a.status = 'Half-Day' THEN 1 ELSE 0 END) AS half_day,
             SUM(CASE WHEN a.status = 'On Leave' THEN 1 ELSE 0 END) AS on_leave,
             COALESCE(SUM(a.hours_worked), 0) AS total_hours_worked

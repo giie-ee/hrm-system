@@ -114,9 +114,7 @@ function WorkspaceLink({ module, className = '' }) {
         <DashboardIcon name={module.icon} />
       </span>
       <span className="module-card__copy">
-        <span className={`availability-pill${module.availability === 'Available' ? '' : ' availability-pill--planned'}`}>
-          {module.availability === 'Available' ? 'Connected' : 'Planned'}
-        </span>
+        {module.availability !== 'Available' && (<span className="availability-pill availability-pill--planned">Planned</span>)}
         <strong>{module.title}</strong>
         <small>{module.description}</small>
       </span>
@@ -185,7 +183,7 @@ function WorkspaceDashboard({
   const stats = [
     { label: 'Access', value: sessionLabel, icon: 'shield', tone: 'blue' },
     { label: 'Role', value: user.role_name || 'Not assigned', icon: 'people', tone: 'green' },
-    { label: 'Connected tools', value: `${availableModules.length} of ${modules.length}`, icon: 'dashboard', tone: 'pink' },
+    { label: 'Available tools', value: `${availableModules.length} of ${modules.length}`, icon: 'dashboard', tone: 'pink' },
     {
       label: user.role_name === 'Employee' ? 'Employee ID' : 'User ID',
       value: user.role_name === 'Employee' ? (user.employee_id || '—') : (user.user_id || '—'),
@@ -315,14 +313,14 @@ function WorkspaceDashboard({
                 <div className="panel-heading panel-heading--compact">
                   <div>
                     <span className="panel-heading__eyebrow">System readiness</span>
-                    <h2>Connected tools</h2>
+                    <h2>Available tools</h2>
                   </div>
                 </div>
                 <div className="readiness-visual">
                   <div className="readiness-ring" style={{ '--readiness': `${readiness * 3.6}deg` }}>
                     <span><strong>{readiness}%</strong><small>ready</small></span>
                   </div>
-                  <p>{availableModules.length} of {modules.length} tools are connected to an available screen or backend check.</p>
+                  <p>{availableModules.length} of {modules.length} tools have an available screen or backend check.</p>
                 </div>
               </section>
 

@@ -1,5 +1,12 @@
 <?php
 $b=HRMS_METHOD==='POST' ? input() : $_GET;
+function provisionOnboarding(int $employeeId, string $startDate): void {
+    query('INSERT INTO onboarding(employee_id,start_date,onboarding_status,assigned_hr_id) VALUES (?,?,?,?)',[$employeeId,$startDate,'Not Started',(int)($_SESSION['user_id']??0)]);
+    $onboarding=inserted();
+    foreach ([['National ID / NRC copy','Identification'],['Proof of address','Identification'],['Bank account details','Financial'],['Academic certificates','Qualification']] as [$name,$type]) {
+        query('INSERT INTO onboarding_documents(onboarding_id,document_name,document_type) VALUES (?,?,?)',[$onboarding,$name,$type]);
+    }
+}
 function contactFields(array $b): array {
     $email=textValue($b['email']??null,'email',100);
     if (!filter_var($email,FILTER_VALIDATE_EMAIL)) fail(400,'Invalid email.');
@@ -65,6 +72,7 @@ $id=transaction(function() use($id,$number,$first,$middle,$last,$gender,$dob,$na
     $values=[$number,$first,$middle,$last,$gender,$dob,$national,$email,$phone,$address,$department,$position,$type,$hire];
     if ($id) { $values[]=$id; query('UPDATE employees SET employee_number=?,first_name=?,middle_name=?,last_name=?,gender=?,date_of_birth=?,national_id=?,email=?,phone=?,address=?,department_id=?,position_id=?,employment_type=?,hire_date=? WHERE employee_id=?',$values); }
     else { query('INSERT INTO employees(employee_number,first_name,middle_name,last_name,gender,date_of_birth,national_id,email,phone,address,department_id,position_id,employment_type,hire_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',$values); $id=inserted();
-        query("INSERT INTO leave_balances(employee_id,leave_type_id,year,total_days,used_days,remaining_days) SELECT ?,leave_type_id,?,default_days,0,default_days FROM leave_types WHERE status='Active' ON CONFLICT (employee_id,leave_type_id,year) DO NOTHING",[$id,(int)date('Y')]); }
+        query("INSERT INTO leave_balances(employee_id,leave_type_id,year,total_days,used_days,remaining_days) SELECT ?,leave_type_id,?,default_days,0,default_days FROM leave_types WHERE status='Active' ON CONFLICT (employee_id,leave_type_id,year) DO NOTHING",[$id,(int)date('Y')]);
+        provisionOnboarding($id,$hire); }
     audit('employee.'.$action,'employees',$id,['fields'=>['identity','contact','employment']]); return $id;
 }); reply(['employee_id'=>$id], 'Employee saved.', $action==='create'?201:200);

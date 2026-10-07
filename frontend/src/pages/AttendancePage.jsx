@@ -7,7 +7,7 @@ function getErrorMessage(error, fallback) {
 }
 
 const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-const attendanceStatuses = ['Present', 'Absent', 'Late', 'Half-Day', 'Early Checkout', 'On Leave', 'Off Schedule']
+const attendanceStatuses = ['Present', 'Absent', 'Late', 'Present (Half Day)', 'Late (Half Day)', 'Half-Day', 'Early Checkout', 'On Leave', 'Off Schedule']
 
 function displayTime(value) {
   return value ? String(value).slice(0, 5) : '—'

@@ -15,7 +15,7 @@ if ($section==='audit') { requireRole(['Admin']); reply(rows('SELECT audit_id,us
 requireRole(['Admin','HR']);
 $start=dateValue($b['start_date']??date('Y-01-01')); $end=dateValue($b['end_date']??date('Y-12-31')); if ($start>$end) fail(400,'Invalid report range.');
 $employees=one("SELECT COUNT(*) total,SUM(CASE WHEN employment_status='Active' THEN 1 ELSE 0 END) active FROM employees");
-$attendance=one("SELECT COUNT(*) records,COALESCE(SUM(CASE WHEN status IN ('Present','Late','Half-Day') THEN 1 ELSE 0 END),0) attended,COALESCE(SUM(hours_worked),0) hours FROM attendance WHERE attendance_date BETWEEN ? AND ?",[$start,$end]);
+$attendance=one("SELECT COUNT(*) records,COALESCE(SUM(CASE WHEN status IN ('Present','Late','Present (Half Day)','Late (Half Day)','Half-Day') THEN 1 ELSE 0 END),0) attended,COALESCE(SUM(hours_worked),0) hours FROM attendance WHERE attendance_date BETWEEN ? AND ?",[$start,$end]);
 $attendance['rate_recorded_days_percent']=$attendance['records']?round(100*(int)$attendance['attended']/(int)$attendance['records'],2):0;
 $attendance['definition']='Present, Late or Half-Day records / all recorded attendance days. Not a scheduled-workday measure.';
 reply([
