@@ -23,7 +23,7 @@ try {
     $rows = $pdo->query(
         "SELECT form_id,onboarding_id,employee_id,form_data::text "
         . "FROM onboarding_forms "
-        . "WHERE form_data ?| ARRAY['bank_name','bank_account_number'] "
+        . "WHERE jsonb_exists_any(form_data, ARRAY['bank_name','bank_account_number']) "
         . "ORDER BY form_id FOR UPDATE"
     )->fetchAll();
     $update = $pdo->prepare(
@@ -52,7 +52,7 @@ try {
 
     $remaining = (int) $pdo->query(
         "SELECT COUNT(*) FROM onboarding_forms "
-        . "WHERE form_data ?| ARRAY['bank_name','bank_account_number']"
+        . "WHERE jsonb_exists_any(form_data, ARRAY['bank_name','bank_account_number'])"
     )->fetchColumn();
     if ($remaining !== 0) {
         throw new RuntimeException('Plaintext onboarding banking data remains after the backfill.');
