@@ -7,6 +7,10 @@ Kamuti backend and ERD relationships without dropping existing Neon records.
 `postgresql/003_nicholas_payroll_work_hours.sql` adds the configurable work
 schedule, attendance snapshots, reusable payroll components, department-safe
 employee defaults and baseline leave-type names identified during role testing.
+`postgresql/004_seed_salaries_and_form_options.sql` seeds demo leave entitlements,
+current-year leave balances, departments, positions, benefits and placeholder
+salaries so forms such as leave requests can be submitted. Replace the figures
+with approved values before production use.
 
 The second migration expands the core employee model and adds departments,
 positions, manager assignments, benefits, onboarding/documents, performance,

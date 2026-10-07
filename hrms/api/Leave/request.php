@@ -360,6 +360,32 @@ try {
 
     $balance_result = $balance_stmt->get_result();
 
+    /*
+     * No balance row yet (new year or new leave type): provision it from the
+     * leave type's default entitlement, then read it back.
+     */
+    if ($balance_result->num_rows === 0) {
+
+        $provision_stmt = $conn->prepare("
+            INSERT INTO leave_balances
+                (employee_id, leave_type_id, year, total_days, used_days, remaining_days)
+            SELECT ?, leave_type_id, ?, default_days, 0, default_days
+            FROM leave_types
+            WHERE leave_type_id = ?
+            ON CONFLICT (employee_id, leave_type_id, year) DO NOTHING
+        ");
+
+        if (!$provision_stmt) {
+            throw new Exception("Failed to prepare leave balance provisioning.");
+        }
+
+        $provision_stmt->bind_param("iii", $employee_id, $start_year, $leave_type_id);
+        $provision_stmt->execute();
+
+        $balance_stmt->execute();
+        $balance_result = $balance_stmt->get_result();
+    }
+
     if ($balance_result->num_rows === 0) {
 
         http_response_code(409);
