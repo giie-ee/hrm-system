@@ -241,3 +241,42 @@ Document files need separate persistence planning. The database stores document
 metadata, but ordinary Render container storage is ephemeral. Use a Render
 persistent disk on a supported plan or object storage before treating uploaded
 files as durable production records.
+
+## Required banking encryption secret
+
+Before deploying migration 006 or the matching application code, create a
+32-byte key locally in PowerShell:
+
+```powershell
+$bankingKey = [Convert]::ToBase64String(
+    [Security.Cryptography.RandomNumberGenerator]::GetBytes(32)
+)
+@{ 'primary-2026-10' = $bankingKey } | ConvertTo-Json -Compress
+```
+
+In the Render service's Environment page, set:
+
+```text
+HRMS_BANKING_ACTIVE_KEY_ID=primary-2026-10
+HRMS_BANKING_KEYS_JSON=<the complete JSON produced above>
+```
+
+Keep the JSON only in Render's protected environment settings and a separately
+controlled recovery vault. Never place it in Git, screenshots, reports, or chat.
+The container runs `bin/encrypt-onboarding-bank-data.php` after migrations and
+before Apache. Deployment intentionally stops if the key is missing, malformed,
+legacy plaintext banking data cannot be converted safely, or any existing
+envelope cannot be authenticated. During rotation, add the new key and change
+the active ID, but retain every old key until all matching envelopes have been
+re-encrypted and verified.
+
+Application encryption protects a copied database from revealing the banking
+values. Anyone who can reveal Render secrets or deploy arbitrary production code
+could still add decryption code, so Render access and deployments must also be
+restricted.
+
+This protection currently covers the bank name and account number submitted in
+the onboarding form. Uploaded files, including a requested "Bank account
+details" document, are stored outside the web root but are not encrypted at
+rest by this application. Decide on protected object storage or file encryption
+before using that upload category for real banking documents.

@@ -15,6 +15,10 @@ services:
         sync: false
       - key: DB_SSLMODE
         value: require
+      - key: HRMS_BANKING_ACTIVE_KEY_ID
+        value: primary-2026-10
+      - key: HRMS_BANKING_KEYS_JSON
+        sync: false
       - key: MIGRATE_ON_START
         value: "1"
       - key: SEED_DASHBOARD_USERS_ON_START

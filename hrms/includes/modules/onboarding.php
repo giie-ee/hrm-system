@@ -1,5 +1,7 @@
 <?php
 $b=HRMS_METHOD==='POST'?input():$_GET;
+require_once __DIR__.'/../../lib/SensitiveData.php';
+require_once __DIR__.'/../../lib/OnboardingFormPolicy.php';
 function onboardingAccess(array $o): void {
     if (!isAdminOrHR() && (int)$o['employee_id']!==ownEmployee()) fail(403,'Only the employee and HR/Admin may access onboarding documents.');
 }
@@ -61,15 +63,43 @@ function onboardingFormFields(): array {
         'tax_number'=>[false,30],'national_id'=>[false,50],'next_of_kin_name'=>[false,100]];
 }
 if ($action==='form-get') {
-    requireLogin(); $params=[]; $where=scope('o.employee_id',$params);
-    if (isset($b['employee_id']) && $b['employee_id']!=='') { $employee=id($b['employee_id'],'employee_id'); requireEmployeeAccess($employee); $where.=' AND o.employee_id=?'; $params[]=$employee; }
+    requireRole(['Admin','HR','Manager','Employee']);
+    $role=(string)$_SESSION['role_name']; $current=ownEmployee(); $params=[];
+    $where=in_array($role,['Admin','HR'],true)?'1=1':'o.employee_id=?';
+    if ($where!=='1=1') $params[]=$current;
+    if (isset($b['employee_id']) && $b['employee_id']!=='') {
+        $employee=id($b['employee_id'],'employee_id');
+        if (!OnboardingFormPolicy::mayRead($role,$current,$employee)) fail(403,'Onboarding forms are limited to the employee and HR/Admin.');
+        $where.=' AND o.employee_id=?'; $params[]=$employee;
+    }
     if (isset($b['status']) && $b['status']!=='') { $where.=" AND COALESCE(f.status,'Pending')=?"; $params[]=choice($b['status'],['Pending','Submitted','Approved','Rejected'],'status'); }
     $forms=rows("SELECT o.onboarding_id,o.employee_id,CONCAT(e.first_name,' ',e.last_name) employee_name,o.onboarding_status,f.form_id,"
-        ."COALESCE(f.status,'Pending') form_status,f.form_data,f.submitted_at,f.reviewed_by,f.reviewed_at,f.rejection_reason "
+        ."COALESCE(f.status,'Pending') form_status,f.form_data,f.banking_envelope,f.submitted_at,f.reviewed_by,f.reviewed_at,f.rejection_reason "
         ."FROM onboarding o JOIN employees e ON e.employee_id=o.employee_id LEFT JOIN onboarding_forms f ON f.onboarding_id=o.onboarding_id "
         ."WHERE $where ORDER BY o.onboarding_id DESC".pageLimit(),$params);
-    foreach ($forms as &$f) { $f['form_data']=$f['form_data']!==null?(json_decode((string)$f['form_data'],true)?:new stdClass()):new stdClass(); } unset($f);
+    foreach ($forms as &$f) {
+        if (!OnboardingFormPolicy::mayRead($role,$current,(int)$f['employee_id'])) fail(403,'Onboarding forms are limited to the employee and HR/Admin.');
+        $data=$f['form_data']!==null?(json_decode((string)$f['form_data'],true)?:[]):[];
+        $f['form_data']=OnboardingFormPolicy::redactBanking($data,$f['banking_envelope']!==null);
+        unset($f['banking_envelope']);
+    } unset($f);
     reply(['fields'=>array_map(fn($rule)=>['required'=>$rule[0],'max_length'=>$rule[1]],onboardingFormFields()),'forms'=>$forms]);
+}
+if ($action==='form-banking') {
+    requireRole(['Admin','HR']);
+    $formId=id($b['form_id']??null,'form_id');
+    $reason=textValue($b['reason']??'','reason',250,true);
+    $banking=transaction(function() use($formId,$reason) {
+        $form=record('onboarding_forms','form_id',$formId,true);
+        if (!OnboardingFormPolicy::mayReview((string)$_SESSION['role_name'],ownEmployee(),(int)$form['employee_id'])) {
+            fail(403,'Only HR/Admin may access another employee\'s protected banking information.');
+        }
+        if (empty($form['banking_envelope'])) fail(404,'Protected banking information is not available.');
+        $values=SensitiveData::revealBanking((string)$form['banking_envelope'],(int)$form['onboarding_id'],(int)$form['employee_id']);
+        audit('onboarding.banking-viewed','onboarding_forms',$formId,['reason'=>$reason]);
+        return $values;
+    });
+    reply($banking,'Protected banking information revealed for this authorized review only.');
 }
 if ($action==='form-submit') {
     requireLogin(); $employee=ownEmployee();
@@ -78,30 +108,32 @@ if ($action==='form-submit') {
     $data=[]; foreach (onboardingFormFields() as $field=>[$required,$max]) { $data[$field]=textValue($b[$field]??'',$field,$max,$required); }
     foreach (['phone','emergency_contact_phone'] as $field) { if (!preg_match('/^[0-9+()\- ]{7,30}$/D',$data[$field])) fail(400,"{$field} is not a valid phone number."); }
     if (!preg_match('/^[0-9A-Za-z\- ]{4,40}$/D',$data['bank_account_number'])) fail(400,'bank_account_number is not valid.');
-    $formId=transaction(function() use($o,$employee,$data) {
+    $bankName=$data['bank_name']; $bankAccount=$data['bank_account_number']; unset($data['bank_name'],$data['bank_account_number']);
+    $formId=transaction(function() use($o,$employee,$data,$bankName,$bankAccount) {
         $onboarding=record('onboarding','onboarding_id',(int)$o['onboarding_id'],true);
         if ($onboarding['onboarding_status']==='Completed') fail(409,'Onboarding is completed.');
         $existing=one('SELECT form_id,status FROM onboarding_forms WHERE onboarding_id=? FOR UPDATE',[(int)$o['onboarding_id']]);
         if ($existing && in_array($existing['status'],['Submitted','Approved'],true)) fail(409,'This form is already '.strtolower($existing['status']).' and cannot be changed.');
-        query("INSERT INTO onboarding_forms(onboarding_id,employee_id,form_data,status,submitted_at) VALUES (?,?,?,'Submitted',NOW()) "
-            ."ON CONFLICT (onboarding_id) DO UPDATE SET form_data=EXCLUDED.form_data,status='Submitted',submitted_at=NOW(),reviewed_by=NULL,reviewed_at=NULL,rejection_reason=NULL",
-            [(int)$o['onboarding_id'],$employee,json_encode($data,JSON_THROW_ON_ERROR)]);
+        $banking=SensitiveData::protectBanking($bankName,$bankAccount,(int)$o['onboarding_id'],$employee);
+        query("INSERT INTO onboarding_forms(onboarding_id,employee_id,form_data,banking_envelope,status,submitted_at) VALUES (?,?,?,CAST(? AS JSONB),'Submitted',NOW()) "
+            ."ON CONFLICT (onboarding_id) DO UPDATE SET form_data=EXCLUDED.form_data,banking_envelope=EXCLUDED.banking_envelope,status='Submitted',submitted_at=NOW(),reviewed_by=NULL,reviewed_at=NULL,rejection_reason=NULL",
+            [(int)$o['onboarding_id'],$employee,json_encode($data,JSON_THROW_ON_ERROR),$banking]);
         $id=$existing?(int)$existing['form_id']:inserted();
         audit('onboarding.form-submitted','onboarding_forms',$id);
         notifyHR('Onboarding form submitted','onboarding_forms',$id);
-        query("INSERT INTO notifications (user_id,title,entity,entity_id) SELECT u.user_id,?,?,? FROM manager_assignments ma JOIN users u ON u.employee_id=ma.manager_employee_id "
-            ."WHERE ma.employee_id=? AND ma.status='Active' AND u.account_status='Active'",['Onboarding form submitted','onboarding_forms',$id,$employee]);
         return $id;
     });
     reply(['form_id'=>$formId,'form_status'=>'Submitted'],'Onboarding form submitted for approval.',201);
 }
 if ($action==='form-review') {
-    requireRole(['Admin','HR','Manager']);
+    requireRole(['Admin','HR']);
     $formId=id($b['form_id']??null,'form_id'); $decision=choice($b['status']??null,['Approved','Rejected']);
     $reason=textValue($b['reason']??'','reason',5000,$decision==='Rejected');
-    $form=record('onboarding_forms','form_id',$formId); requireReviewer((int)$form['employee_id']);
+    $form=record('onboarding_forms','form_id',$formId);
+    if (!OnboardingFormPolicy::mayReview((string)$_SESSION['role_name'],ownEmployee(),(int)$form['employee_id'])) fail(403,'Only HR/Admin may review another employee\'s onboarding form.');
     transaction(function() use($formId,$decision,$reason) {
         $f=record('onboarding_forms','form_id',$formId,true);
+        if (!OnboardingFormPolicy::mayReview((string)$_SESSION['role_name'],ownEmployee(),(int)$f['employee_id'])) fail(403,'Only HR/Admin may review another employee\'s onboarding form.');
         if ($f['status']!=='Submitted') fail(409,'Only submitted forms can be reviewed.');
         query('UPDATE onboarding_forms SET status=?,reviewed_by=?,reviewed_at=NOW(),rejection_reason=? WHERE form_id=?',[$decision,(int)$_SESSION['user_id'],$decision==='Rejected'?$reason:null,$formId]);
         if ($decision==='Approved') {

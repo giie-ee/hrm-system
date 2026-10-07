@@ -13,6 +13,10 @@ if [ "${MIGRATE_ON_START}" = "1" ]; then
     php /app/bin/migrate.php
 fi
 
+# Fail closed when the encryption key is missing or legacy plaintext banking
+# fields cannot be converted safely.
+php /app/bin/encrypt-onboarding-bank-data.php
+
 if [ "${SEED_DASHBOARD_USERS_ON_START}" = "1" ]; then
     php /app/bin/seed-dashboard-users.php
 elif [ "${SEED_ADMIN_ON_START}" = "1" ]; then
