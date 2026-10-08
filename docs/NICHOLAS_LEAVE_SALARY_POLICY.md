@@ -1,11 +1,19 @@
 # Nicholas weekly delivery: leave and salary demonstration policy
 
+> **IMPORTANT: EVERY LEAVE AND SALARY FIGURE IN THIS DOCUMENT CAN CHANGE.**
+> These are editable university-demonstration defaults, not a Zambian national
+> salary scale, legal entitlement, employment contract or mandatory company
+> policy. Each organisation must configure and approve its own values, subject
+> to applicable legal and contractual minimums.
+
 ## Purpose and boundary
 
 This delivery gives the HRMS clear numbers for demonstrations and testing. The
-figures are proposals, not legal, tax, payroll or employment advice. Before a
-real organisation uses them, Admin/HR must approve the policy and verify it
-against current Zambian requirements and the organisation's contracts.
+figures are proposals and **can be changed by an authorised organisation**.
+They are not legal, tax, payroll or employment advice. Before a real
+organisation uses them, Admin/HR must approve the policy and verify it against
+current Zambian requirements, its budget, job evaluation, contracts and
+conditions of service.
 
 Migration `007_nicholas_leave_salary_policy.sql` does not overwrite active
 employee salary records. It creates separate position guidelines so the Payroll
@@ -33,7 +41,10 @@ rejects a request that exceeds its consecutive-day or annual request limit.
 
 ## Proposed monthly position salaries
 
-All amounts are monthly basic salary guidelines in ZMW.
+All amounts are monthly basic salary guidelines in ZMW. **They are editable
+reference values only and can change.** Changing a guideline must not silently
+change any employee's effective-dated basic salary. The evidence and limitations
+are documented in `docs/ZAMBIA_DEMO_SALARY_JUSTIFICATION.md`.
 
 | Department | Position | Proposed monthly salary |
 |---|---|---:|
@@ -42,7 +53,10 @@ All amounts are monthly basic salary guidelines in ZMW.
 | Finance | Finance Manager | 21,000.00 |
 | Finance | Accountant | 13,500.00 |
 | Information Technology | IT Manager | 23,000.00 |
-| Information Technology | Software Developer | 16,500.00 |
+| Information Technology | Junior Software Developer | 9,000.00 |
+| Information Technology | Software Developer (mid-level demonstration role) | 16,500.00 |
+| Information Technology | Senior Software Developer | 20,000.00 |
+| Information Technology | Lead Software Developer | 25,000.00 |
 | Information Technology | Systems Administrator | 14,500.00 |
 | Operations | Operations Manager | 19,000.00 |
 | Operations | Operations Officer | 10,500.00 |
@@ -60,6 +74,11 @@ Fallback positions created during early migrations also receive guidelines:
 | Operations Staff | 9,000.00 |
 | Sales & Marketing Staff | 8,500.00 |
 
+The junior, senior and lead software-development positions are added by
+migration `008_configurable_salary_guidelines.sql`. The other position values
+remain internal demonstration assumptions unless a cited review says otherwise;
+they must not be presented as verified market averages.
+
 The Payroll page shows both tables:
 
 1. Position recommendations and the number of active employees in each.
@@ -67,6 +86,17 @@ The Payroll page shows both tables:
 
 This exposes missing or outdated placeholder salaries without silently changing
 payroll history.
+
+Admin/HR can replace a guideline after considering organisation size, location,
+budget, experience, qualifications, scarcity of skills and responsibility. An
+employee's contractual salary must still be created or changed through the
+effective-dated Payroll workflow. Payroll then applies that actual salary with
+the relevant earnings and deductions for a pay period.
+
+The present Payroll screen displays position guidelines for comparison but does
+not yet provide a guideline-editing form. Until that authorised workflow is
+added, guideline changes require a reviewed database migration or administration
+step; they must never be made by changing application constants.
 
 ## Bonus decision
 

@@ -22,6 +22,10 @@ converts any legacy rows before Apache starts.
 `postgresql/007_nicholas_leave_salary_policy.sql` adds editable leave request
 limits and separate position-based salary guidelines without overwriting active
 employee salary records. See `docs/NICHOLAS_LEAVE_SALARY_POLICY.md`.
+`postgresql/008_configurable_salary_guidelines.sql` adds junior, senior and lead
+software-development positions with editable demonstration guidelines. It does
+not change an employee's position or salary. See
+`docs/ZAMBIA_DEMO_SALARY_JUSTIFICATION.md` for the evidence and limitations.
 
 The second migration expands the core employee model and adds departments,
 positions, manager assignments, benefits, onboarding/documents, performance,
