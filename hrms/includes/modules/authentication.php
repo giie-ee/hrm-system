@@ -23,7 +23,8 @@ if ($action === 'login') {
     $_SESSION['csrf_token']=bin2hex(random_bytes(32)); $_SESSION['last_activity']=time();
     audit('login','users',(int)$result['user_id']);
     $u=array_intersect_key($result,array_flip(['user_id','employee_id','role_id','role_name','username','email']));
+    $u['onboarding_required']=$result['role_name']==='Employee' && onboardingRequired((int)$result['employee_id']);
     reply(['user'=>$u,'csrf_token'=>$_SESSION['csrf_token']],'Login successful.',200,['user'=>$u,'csrf_token'=>$_SESSION['csrf_token']]);
 }
-if ($action==='me') reply(['user'=>array_intersect_key($_SESSION,array_flip(['user_id','employee_id','role_id','role_name','username'])),'csrf_token'=>$_SESSION['csrf_token']]);
+if ($action==='me') reply(['user'=>array_intersect_key($_SESSION,array_flip(['user_id','employee_id','role_id','role_name','username']))+['onboarding_required'=>(bool)($_SESSION['onboarding_required']??false)],'csrf_token'=>$_SESSION['csrf_token']]);
 if ($action==='logout') { audit('logout','users',(int)$_SESSION['user_id']); $_SESSION=[]; session_destroy(); setcookie(session_name(),'', ['expires'=>time()-3600,'path'=>'/','httponly'=>true,'samesite'=>'Lax']); reply([], 'Logged out.'); }

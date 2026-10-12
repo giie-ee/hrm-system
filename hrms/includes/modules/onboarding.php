@@ -12,6 +12,18 @@ function privateStorage(): string {
     if (!$real || ($web && str_starts_with(strtolower(str_replace('\\','/',$real)).'/',strtolower(str_replace('\\','/',$web)).'/'))) fail(500,'Document storage must be outside the web root.');
     return $real;
 }
+function onboardingRequirements(array $o): array {
+    $n=one("SELECT COUNT(*) total,COALESCE(SUM(CASE WHEN document_status='Verified' THEN 1 ELSE 0 END),0) verified FROM onboarding_documents WHERE onboarding_id=?",[(int)$o['onboarding_id']]);
+    $form=one('SELECT status FROM onboarding_forms WHERE onboarding_id=?',[(int)$o['onboarding_id']]);
+    $restricts=filter_var($o['restricts_access']??false,FILTER_VALIDATE_BOOLEAN); $formStatus=(string)($form['status']??'Pending');
+    $documentsDone=(int)$n['total']>0 && (int)$n['total']===(int)$n['verified'];
+    return ['documents_total'=>(int)$n['total'],'documents_verified'=>(int)$n['verified'],'form_required'=>$restricts,'form_status'=>$formStatus,
+        'ready_to_complete'=>$documentsDone && (!$restricts || $formStatus==='Approved')];
+}
+function onboardingNotifyIfReady(int $onboardingId): void {
+    $o=record('onboarding','onboarding_id',$onboardingId);
+    if ($o['onboarding_status']!=='Completed' && onboardingRequirements($o)['ready_to_complete']) notifyHR('Onboarding ready for completion','onboarding',$onboardingId);
+}
 if ($action==='get') {
     $params=[]; $where=isAdminOrHR()?'1=1':'employee_id=?'; if (!isAdminOrHR()) $params[]=ownEmployee();
     if (isset($b['employee_id'])) { $employee=id($b['employee_id']); if (!isAdminOrHR() && $employee!==ownEmployee()) fail(403,'Access denied.'); $where.=' AND employee_id=?'; $params[]=$employee; }
@@ -19,6 +31,7 @@ if ($action==='get') {
     foreach ($onboardings as &$o) {
         $o['documents']=rows('SELECT document_id,document_name,document_type,document_status,rejection_reason,verified_by,verified_at FROM onboarding_documents WHERE onboarding_id=?',[(int)$o['onboarding_id']]);
         $verified=count(array_filter($o['documents'],fn($d)=>$d['document_status']==='Verified')); $o['verification_percentage']=count($o['documents'])?round(100*$verified/count($o['documents']),2):0;
+        $o['requirements']=onboardingRequirements($o);
     } unset($o); reply($onboardings);
 }
 if ($action==='create' || $action==='update') {
@@ -28,13 +41,16 @@ if ($action==='create' || $action==='update') {
         if ($id && $old['onboarding_status']==='Completed') fail(409,'Completed onboarding is immutable.');
         if (!$id && one("SELECT onboarding_id FROM onboarding WHERE employee_id=? AND onboarding_status<>'Completed'",[$employee])) fail(409,'An open onboarding record exists.');
         $hr=id($b['assigned_hr_id']??$old['assigned_hr_id']??null); if (!one("SELECT u.user_id FROM users u JOIN roles r ON r.role_id=u.role_id WHERE u.user_id=? AND r.role_name IN ('Admin','HR') AND u.account_status='Active'",[$hr])) fail(400,'assigned_hr_id must identify an active HR/Admin user.');
+        $restrict=array_key_exists('restrict_access',$b)?filter_var($b['restrict_access'],FILTER_VALIDATE_BOOLEAN,FILTER_NULL_ON_FAILURE):filter_var($old['restricts_access']??false,FILTER_VALIDATE_BOOLEAN);
+        if ($restrict===null) fail(400,'restrict_access must be true or false.');
         $start=dateValue($b['start_date']??$old['start_date']??null); $status=choice($b['onboarding_status']??$old['onboarding_status']??'Not Started',['Not Started','In Progress','Completed','On Hold']); $notes=textValue($b['notes']??$old['notes']??'','notes',5000,false);
         if (!$id && !in_array($status,['Not Started','In Progress'],true)) fail(400,'New onboarding starts Not Started or In Progress.');
         if ($id && $status!==$old['onboarding_status'] && !in_array($status,['Not Started'=>['In Progress','On Hold'],'In Progress'=>['On Hold','Completed'],'On Hold'=>['In Progress']][$old['onboarding_status']]??[],true)) fail(409,'Invalid onboarding transition.');
-        if ($status==='Completed') { $n=one("SELECT COUNT(*) total,SUM(CASE WHEN document_status='Verified' THEN 1 ELSE 0 END) verified FROM onboarding_documents WHERE onboarding_id=?",[$id]); if (!(int)$n['total'] || (int)$n['total']!==(int)$n['verified']) fail(409,'All required documents must be verified.'); }
-        if ($id) query('UPDATE onboarding SET start_date=?,onboarding_status=?,assigned_hr_id=?,notes=?,completed_at=? WHERE onboarding_id=?',[$start,$status,$hr,$notes,$status==='Completed'?date('Y-m-d H:i:s'):null,$id]);
-        else { query('INSERT INTO onboarding(employee_id,start_date,onboarding_status,assigned_hr_id,notes) VALUES (?,?,?,?,?)',[$employee,$start,$status,$hr,$notes]); $id=inserted(); }
-        audit('onboarding.saved','onboarding',$id,['status'=>$status]); return $id;
+        if ($status==='Completed') { $n=one("SELECT COUNT(*) total,SUM(CASE WHEN document_status='Verified' THEN 1 ELSE 0 END) verified FROM onboarding_documents WHERE onboarding_id=?",[$id]); if (!(int)$n['total'] || (int)$n['total']!==(int)$n['verified']) fail(409,'All required documents must be verified.');
+            if ($restrict) { $f=one('SELECT status FROM onboarding_forms WHERE onboarding_id=?',[$id]); if (($f['status']??'')!=='Approved') fail(409,'The onboarding information form must be approved.'); } }
+        if ($id) query('UPDATE onboarding SET start_date=?,onboarding_status=?,assigned_hr_id=?,notes=?,completed_at=?,restricts_access=? WHERE onboarding_id=?',[$start,$status,$hr,$notes,$status==='Completed'?date('Y-m-d H:i:s'):null,$restrict?'true':'false',$id]);
+        else { query('INSERT INTO onboarding(employee_id,start_date,onboarding_status,assigned_hr_id,notes,restricts_access) VALUES (?,?,?,?,?,?)',[$employee,$start,$status,$hr,$notes,$restrict?'true':'false']); $id=inserted(); }
+        audit('onboarding.saved','onboarding',$id,['status'=>$status,'restricts_access'=>$restrict]); return $id;
     }); reply(record('onboarding','onboarding_id',$id),'Onboarding saved.',$action==='create'?201:200);
 }
 function documentCatalog(): array {
@@ -119,6 +135,7 @@ if ($action==='form-submit') {
             ."ON CONFLICT (onboarding_id) DO UPDATE SET form_data=EXCLUDED.form_data,banking_envelope=EXCLUDED.banking_envelope,status='Submitted',submitted_at=NOW(),reviewed_by=NULL,reviewed_at=NULL,rejection_reason=NULL",
             [(int)$o['onboarding_id'],$employee,json_encode($data,JSON_THROW_ON_ERROR),$banking]);
         $id=$existing?(int)$existing['form_id']:inserted();
+        query("UPDATE onboarding SET onboarding_status='In Progress' WHERE onboarding_id=? AND onboarding_status='Not Started'",[(int)$o['onboarding_id']]);
         audit('onboarding.form-submitted','onboarding_forms',$id);
         notifyHR('Onboarding form submitted','onboarding_forms',$id);
         return $id;
@@ -141,6 +158,7 @@ if ($action==='form-review') {
             query('UPDATE employees SET phone=?,address=? WHERE employee_id=?',[(string)($data['phone']??''),(string)($data['address']??''),$employee]);
             if (!empty($data['national_id'])) query('UPDATE employees SET national_id=? WHERE employee_id=? AND national_id IS NULL AND NOT EXISTS (SELECT 1 FROM employees x WHERE x.national_id=?)',[$data['national_id'],$employee,$data['national_id']]);
         }
+        if ($decision==='Approved') onboardingNotifyIfReady((int)$f['onboarding_id']);
         audit('onboarding.form-'.strtolower($decision),'onboarding_forms',$formId); notifyEmployee((int)$f['employee_id'],'Onboarding form '.strtolower($decision),'onboarding_forms',$formId);
     });
     reply(['form_id'=>$formId,'form_status'=>$decision],'Onboarding form '.strtolower($decision).'.');
@@ -164,6 +182,7 @@ if ($action==='submit') {
             if ($onboarding['onboarding_status']==='Completed' || !in_array($d['document_status'],['Pending','Rejected'],true)) fail(409,'Only Pending or Rejected documents can be submitted.');
             if (!move_uploaded_file($upload['tmp_name'],$path)) fail(500,'Unable to store document.');
             query("UPDATE onboarding_documents SET document_path=?,document_status='Submitted',rejection_reason=NULL,verified_by=NULL,verified_at=NULL WHERE document_id=?",[$token,$id]);
+            query("UPDATE onboarding SET onboarding_status='In Progress' WHERE onboarding_id=? AND onboarding_status='Not Started'",[(int)$o['onboarding_id']]);
             query("INSERT INTO document_history(document_id,status,changed_by) VALUES (?,'Submitted',?)",[$id,(int)$_SESSION['user_id']]); audit('document.submitted','onboarding_documents',$id); notifyHR('Onboarding document submitted','onboarding_documents',$id);
         });
     } catch(Throwable $e) { if (is_file($path)) unlink($path); throw $e; }
@@ -175,6 +194,7 @@ if ($action==='verify') {
         record('onboarding','onboarding_id',(int)$o['onboarding_id'],true); $d=record('onboarding_documents','document_id',$id,true); if ($d['document_status']!=='Submitted') fail(409,'Only Submitted documents can be reviewed.');
         if ((int)$o['employee_id']===ownEmployee()) fail(403,'You cannot verify your own document.');
         query('UPDATE onboarding_documents SET document_status=?,rejection_reason=?,verified_by=?,verified_at=NOW() WHERE document_id=?',[$status,$status==='Rejected'?$reason:null,(int)$_SESSION['user_id'],$id]);
+        if ($status==='Verified') onboardingNotifyIfReady((int)$o['onboarding_id']);
         query('INSERT INTO document_history(document_id,status,reason,changed_by) VALUES (?,?,?,?)',[$id,$status,$reason,(int)$_SESSION['user_id']]); audit('document.'.$status,'onboarding_documents',$id); notifyEmployee((int)$o['employee_id'],'Document '.$status,'onboarding_documents',$id);
     }); reply(['document_id'=>$id,'document_status'=>$status]);
 }

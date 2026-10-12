@@ -1,7 +1,7 @@
 <?php
 $b=HRMS_METHOD==='POST' ? input() : $_GET;
 function provisionOnboarding(int $employeeId, string $startDate): void {
-    query('INSERT INTO onboarding(employee_id,start_date,onboarding_status,assigned_hr_id) VALUES (?,?,?,?)',[$employeeId,$startDate,'Not Started',(int)($_SESSION['user_id']??0)]);
+    query('INSERT INTO onboarding(employee_id,start_date,onboarding_status,assigned_hr_id,restricts_access) VALUES (?,?,?,?,?)',[$employeeId,$startDate,'Not Started',(int)($_SESSION['user_id']??0),'true']);
     $onboarding=inserted();
     foreach ([['National ID / NRC copy','Identification'],['Proof of address','Identification'],['Bank account details','Financial'],['Academic certificates','Qualification']] as [$name,$type]) {
         query('INSERT INTO onboarding_documents(onboarding_id,document_name,document_type) VALUES (?,?,?)',[$onboarding,$name,$type]);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/session.php';
 require_once __DIR__ . '/core.php';
+require_once __DIR__ . '/../lib/OnboardingAccess.php';
 
 function requireLogin(): void
 {
@@ -35,6 +36,28 @@ function requireLogin(): void
 
     foreach (['employee_id', 'role_id', 'role_name', 'username'] as $key) $_SESSION[$key] = $user[$key];
     $checked = true;
+
+    // Two access levels: an Employee who has not finished a restricting onboarding
+    // may only reach the endpoints in OnboardingAccess. Re-evaluated on every
+    // request so completing onboarding unlocks the account immediately.
+    $_SESSION['onboarding_required'] = $user['role_name'] === 'Employee' && onboardingRequired((int) $user['employee_id']);
+    if ($_SESSION['onboarding_required'] && !OnboardingAccess::allows((string) ($_SERVER['SCRIPT_NAME'] ?? ''))) {
+        http_response_code(403);
+        echo json_encode([
+            'success' => false,
+            'message' => OnboardingAccess::MESSAGE,
+            'code' => OnboardingAccess::ERROR_CODE,
+        ]);
+        exit;
+    }
+}
+
+function onboardingRequired(int $employeeId): bool
+{
+    return one(
+        "SELECT onboarding_id FROM onboarding WHERE employee_id=? AND restricts_access AND onboarding_status<>'Completed' LIMIT 1",
+        [$employeeId]
+    ) !== null;
 }
 
 function requireRole(array $allowedRoles): void
