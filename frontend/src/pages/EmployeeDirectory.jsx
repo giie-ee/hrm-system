@@ -17,6 +17,9 @@ const emptyEmployeeForm = {
   position_id: '',
   employment_type: 'Full-Time',
   hire_date: '',
+  basic_salary: '',
+  create_account: false,
+  username: '',
 }
 
 function EmployeeDirectory() {
@@ -34,6 +37,7 @@ function EmployeeDirectory() {
   const [employeeForm, setEmployeeForm] = useState(emptyEmployeeForm)
   const [editingEmployeeId, setEditingEmployeeId] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [newAccount, setNewAccount] = useState(null)
 
   useEffect(() => {
     let isActive = true
@@ -97,10 +101,10 @@ function EmployeeDirectory() {
   )
 
   const handleEmployeeFormChange = (event) => {
-    const { name, value } = event.target
+    const { name, value, type, checked } = event.target
     setEmployeeForm((previous) => ({
       ...previous,
-      [name]: value,
+      [name]: type === 'checkbox' ? checked : value,
       ...(name === 'department_id' ? { position_id: '' } : {}),
     }))
   }
@@ -122,6 +126,9 @@ function EmployeeDirectory() {
       position_id: employee.position_id || '',
       employment_type: employee.employment_type || 'Full-Time',
       hire_date: employee.hire_date || '',
+      basic_salary: '',
+      create_account: false,
+      username: '',
     })
     setError('')
     setSuccess('')
@@ -140,14 +147,19 @@ function EmployeeDirectory() {
     setSuccess('')
     try {
       const endpoint = editingEmployeeId ? '/api/employees/update.php' : '/api/employees/create.php'
-      await apiClient.post(endpoint, {
-        ...employeeForm,
+      const { basic_salary: basicSalary, create_account: createAccount, username, ...employeeFields } = employeeForm
+      const response = await apiClient.post(endpoint, {
+        ...employeeFields,
         date_of_birth: employeeForm.date_of_birth || null,
         national_id: employeeForm.national_id || null,
         department_id: Number(employeeForm.department_id),
         position_id: Number(employeeForm.position_id),
-        ...(editingEmployeeId ? { employee_id: editingEmployeeId } : {}),
+        ...(editingEmployeeId ? { employee_id: editingEmployeeId } : {
+          ...(basicSalary ? { basic_salary: basicSalary } : {}),
+          ...(createAccount ? { create_account: true, ...(username ? { username } : {}) } : {}),
+        }),
       })
+      setNewAccount(response.data?.data?.account || null)
       setSuccess(editingEmployeeId ? 'Employee information updated.' : 'Employee record created.')
       resetEmployeeForm()
       setRefreshKey((value) => value + 1)
@@ -196,6 +208,15 @@ function EmployeeDirectory() {
         </header>
 
         {error && <div role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+        {newAccount && (
+          <div role="status" className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
+            <p className="font-semibold">Login account created. Share these details with the employee now.</p>
+            <p className="mt-2">Username: <code className="rounded bg-white px-1.5 py-0.5 font-mono">{newAccount.username}</code></p>
+            <p className="mt-1">Temporary password: <code className="rounded bg-white px-1.5 py-0.5 font-mono">{newAccount.temporary_password}</code></p>
+            <p className="mt-2 text-xs">This password is shown only once and is not stored anywhere readable. The employee must choose their own password at first sign-in.</p>
+            <button type="button" onClick={() => setNewAccount(null)} className="action-button-secondary mt-3">I have noted it, dismiss</button>
+          </div>
+        )}
         {success && <div role="status" className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div>}
 
         {canManageEmployees && (
@@ -224,6 +245,13 @@ function EmployeeDirectory() {
               <label><span className="mb-2 block text-sm font-medium text-slate-700">Position</span><select required name="position_id" value={employeeForm.position_id} onChange={handleEmployeeFormChange} disabled={!employeeForm.department_id} className="field-input"><option value="">Select position</option>{availablePositions.map((position) => <option key={position.position_id} value={position.position_id}>{position.position_name}</option>)}</select></label>
               <label><span className="mb-2 block text-sm font-medium text-slate-700">Employment type</span><select required name="employment_type" value={employeeForm.employment_type} onChange={handleEmployeeFormChange} className="field-input"><option value="Full-Time">Full-Time</option><option value="Part-Time">Part-Time</option><option value="Contract">Contract</option><option value="Temporary">Temporary</option></select></label>
               <label className="md:col-span-2 xl:col-span-1"><span className="mb-2 block text-sm font-medium text-slate-700">Address</span><input name="address" value={employeeForm.address} onChange={handleEmployeeFormChange} className="field-input" /></label>
+              {!editingEmployeeId && (
+                <>
+                  <label><span className="mb-2 block text-sm font-medium text-slate-700">Basic salary (optional, ZMW)</span><input type="number" min="0" step="0.01" name="basic_salary" value={employeeForm.basic_salary} onChange={handleEmployeeFormChange} className="field-input" placeholder="e.g. 7500.00" /></label>
+                  <label className="flex items-center gap-3 self-end rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700"><input type="checkbox" name="create_account" checked={employeeForm.create_account} onChange={handleEmployeeFormChange} />Create a login account with a temporary password</label>
+                  {employeeForm.create_account && <label><span className="mb-2 block text-sm font-medium text-slate-700">Username (optional)</span><input name="username" value={employeeForm.username} onChange={handleEmployeeFormChange} className="field-input" placeholder="Defaults to first.last" autoComplete="off" /></label>}
+                </>
+              )}
               <button type="submit" disabled={saving || configuration.departments.length === 0} className="action-button-primary md:col-span-2 xl:col-span-4">{saving ? 'Saving employee...' : editingEmployeeId ? 'Save employee changes' : 'Add employee'}</button>
             </form>
           </section>

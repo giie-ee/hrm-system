@@ -1738,3 +1738,14 @@
     animation-iteration-count: 1 !important;
   }
 }
+
+.module-card--locked {
+  cursor: not-allowed;
+  opacity: 0.55;
+  filter: grayscale(0.6);
+}
+
+.workspace-nav__item--locked {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

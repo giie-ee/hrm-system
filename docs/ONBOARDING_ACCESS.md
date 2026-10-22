@@ -46,3 +46,22 @@ form submission moves `Not Started` to `In Progress` automatically, and HR gets 
 
 ## Rollback
 `docs/rollback/009_rollback.sql` (manual). The old code ignores the column.
+
+## Accounts created at hire (temporary password)
+`POST /api/employees/create.php` accepts, in addition to the employee fields:
+- `basic_salary` (optional, e.g. `"7500.00"`) and `salary_effective_from` (defaults to the hire date) - creates the first salary row.
+- `create_account: true` and optional `username` (defaults to `first.last`, a number is appended if taken) - creates an Employee login with a generated 14 character **temporary password** and `must_change_password = true`. The response contains `account: {user_id, username, temporary_password}`; **this is the only time the password is shown** and it is never written to the audit log. Everything happens in one transaction, so a failure (for example a taken username) creates nothing.
+
+Until the employee sets their own password, every endpoint except `api/auth/*` returns
+`403 {"code": "PASSWORD_CHANGE_REQUIRED"}`. `auth/login.php` and `auth/me.php` return
+`user.must_change_password`. `POST /api/auth/change-password.php`
+`{current_password, new_password}` clears the flag, ends the user's other sessions
+(`auth_version`) and keeps the current one; it is limited to 5 wrong attempts per 15 minutes.
+`users/create.php` and `users/reset-password.php` accept an optional
+`must_change_password` (default `false`, so existing admin flows are unchanged).
+Migration `010`, rollback `docs/rollback/010_rollback.sql`.
+
+Frontend: login goes to `/change-password` when the flag is set; the router, onboarding
+banner, locked dashboard tiles, completion panel for HR and the "create account" /
+salary fields on the employee form are in `frontend/src` (`api/session.js`,
+`pages/ChangePasswordPage.jsx`, `components/OnboardingStatus.jsx`).

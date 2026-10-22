@@ -23,8 +23,34 @@ if ($action === 'login') {
     $_SESSION['csrf_token']=bin2hex(random_bytes(32)); $_SESSION['last_activity']=time();
     audit('login','users',(int)$result['user_id']);
     $u=array_intersect_key($result,array_flip(['user_id','employee_id','role_id','role_name','username','email']));
+    $u['must_change_password']=filter_var($result['must_change_password'],FILTER_VALIDATE_BOOLEAN);
     $u['onboarding_required']=$result['role_name']==='Employee' && onboardingRequired((int)$result['employee_id']);
     reply(['user'=>$u,'csrf_token'=>$_SESSION['csrf_token']],'Login successful.',200,['user'=>$u,'csrf_token'=>$_SESSION['csrf_token']]);
 }
-if ($action==='me') reply(['user'=>array_intersect_key($_SESSION,array_flip(['user_id','employee_id','role_id','role_name','username']))+['onboarding_required'=>(bool)($_SESSION['onboarding_required']??false)],'csrf_token'=>$_SESSION['csrf_token']]);
+if ($action==='me') reply(['user'=>array_intersect_key($_SESSION,array_flip(['user_id','employee_id','role_id','role_name','username']))+['onboarding_required'=>(bool)($_SESSION['onboarding_required']??false),'must_change_password'=>(bool)($_SESSION['must_change_password']??false)],'csrf_token'=>$_SESSION['csrf_token']]);
+if ($action==='change-password') {
+    $b=input(); $current=textValue($b['current_password']??null,'current_password',128); $new=textValue($b['new_password']??null,'new_password',128);
+    if (!AccountPolicy::isStrongPassword($new)) fail(400,AccountPolicy::PASSWORD_RULE);
+    $uid=(int)$_SESSION['user_id']; $key=hash('sha256','pwchange:'.$uid);
+    $outcome=transaction(function() use($uid,$current,$new,$key) {
+        query('INSERT INTO login_attempts(attempt_key,attempts,window_started) VALUES (?,0,NOW()) ON CONFLICT (attempt_key) DO NOTHING',[$key]);
+        $a=one('SELECT * FROM login_attempts WHERE attempt_key=? FOR UPDATE',[$key]);
+        if (strtotime($a['window_started'])<time()-900) { query('UPDATE login_attempts SET attempts=0,window_started=NOW() WHERE attempt_key=?',[$key]); $a['attempts']=0; }
+        if ((int)$a['attempts']>=5) return 'limited';
+        $u=record('users','user_id',$uid,true);
+        if (!password_verify($current,$u['password_hash'])) { query('UPDATE login_attempts SET attempts=attempts+1 WHERE attempt_key=?',[$key]); audit('password.change-failed','users',$uid); return 'invalid'; }
+        if (password_verify($new,$u['password_hash'])) return 'same';
+        query('UPDATE users SET password_hash=?,must_change_password=FALSE,auth_version=auth_version+1 WHERE user_id=?',[password_hash($new,PASSWORD_DEFAULT),$uid]);
+        query('UPDATE login_attempts SET attempts=0 WHERE attempt_key=?',[$key]);
+        audit('password.changed','users',$uid);
+        return 'ok';
+    });
+    if ($outcome==='limited') { header('Retry-After: 900'); fail(429,'Too many attempts. Try again later.'); }
+    if ($outcome==='invalid') fail(401,'Current password is incorrect.');
+    if ($outcome==='same') fail(400,'Choose a password different from the current one.');
+    // Other sessions are invalidated by auth_version; keep this one alive.
+    $_SESSION['auth_version']=(int)one('SELECT auth_version FROM users WHERE user_id=?',[$uid])['auth_version'];
+    $_SESSION['must_change_password']=false;
+    reply(['must_change_password'=>false],'Password changed.');
+}
 if ($action==='logout') { audit('logout','users',(int)$_SESSION['user_id']); $_SESSION=[]; session_destroy(); setcookie(session_name(),'', ['expires'=>time()-3600,'path'=>'/','httponly'=>true,'samesite'=>'Lax']); reply([], 'Logged out.'); }

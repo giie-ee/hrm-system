@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/session.php';
 require_once __DIR__ . '/core.php';
 require_once __DIR__ . '/../lib/OnboardingAccess.php';
+require_once __DIR__ . '/../lib/AccountPolicy.php';
 
 function requireLogin(): void
 {
@@ -21,7 +22,7 @@ function requireLogin(): void
     if (!isset($conn)) require_once __DIR__ . '/../config/database.php';
 
     $user = one(
-        'SELECT u.user_id,u.employee_id,u.role_id,u.username,u.account_status,u.auth_version,r.role_name,e.employment_status '
+        'SELECT u.user_id,u.employee_id,u.role_id,u.username,u.account_status,u.auth_version,u.must_change_password,r.role_name,e.employment_status '
         . 'FROM users u JOIN roles r ON r.role_id=u.role_id JOIN employees e ON e.employee_id=u.employee_id WHERE u.user_id=?',
         [(int) $_SESSION['user_id']]
     );
@@ -36,6 +37,18 @@ function requireLogin(): void
 
     foreach (['employee_id', 'role_id', 'role_name', 'username'] as $key) $_SESSION[$key] = $user[$key];
     $checked = true;
+
+    // A temporary password must be replaced before anything else is reachable.
+    $_SESSION['must_change_password'] = filter_var($user['must_change_password'], FILTER_VALIDATE_BOOLEAN);
+    if ($_SESSION['must_change_password'] && !AccountPolicy::allowedWhilePasswordChangePending((string) ($_SERVER['SCRIPT_NAME'] ?? ''))) {
+        http_response_code(403);
+        echo json_encode([
+            'success' => false,
+            'message' => AccountPolicy::PASSWORD_CHANGE_MESSAGE,
+            'code' => AccountPolicy::PASSWORD_CHANGE_CODE,
+        ]);
+        exit;
+    }
 
     // Two access levels: an Employee who has not finished a restricting onboarding
     // may only reach the endpoints in OnboardingAccess. Re-evaluated on every

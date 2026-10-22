@@ -14,11 +14,12 @@ if ($action==='create') {
     if ($_SESSION['role_name']==='HR' && $r['role_name']==='Admin') fail(403,'Only Admin can assign the Admin role.');
     $username=textValue($b['username']??null,'username',50); if (!preg_match('/^[A-Za-z0-9_.-]{3,50}$/D',$username)) fail(400,'Invalid username.');
     $hash=newPassword($b['password']??null);
-    $id=transaction(function() use($employee,$role,$username,$hash) {
+    $mustChange=filter_var($b['must_change_password']??false,FILTER_VALIDATE_BOOLEAN);
+    $id=transaction(function() use($employee,$role,$username,$hash,$mustChange) {
         $e=record('employees','employee_id',$employee,true);
         if ($e['employment_status']!=='Active') fail(409,'Employee must be active.');
         if (one('SELECT user_id FROM users WHERE employee_id=?',[$employee])) fail(409,'Employee already has an account.');
-        query('INSERT INTO users(employee_id,role_id,username,email,password_hash) VALUES (?,?,?,?,?)',[$employee,$role,$username,$e['email'],$hash]); $id=inserted(); audit('user.created','users',$id,['role_id'=>$role]); return $id;
+        query('INSERT INTO users(employee_id,role_id,username,email,password_hash,must_change_password) VALUES (?,?,?,?,?,?)',[$employee,$role,$username,$e['email'],$hash,$mustChange?'true':'false']); $id=inserted(); audit('user.created','users',$id,['role_id'=>$role]); return $id;
     }); reply(['user_id'=>$id],'Account created.',201);
 }
 $id=id($b['user_id']??null);
@@ -27,7 +28,7 @@ transaction(function() use($action,$id,$b) {
     rows("SELECT u.user_id FROM users u JOIN roles r ON r.role_id=u.role_id WHERE r.role_name='Admin' FOR UPDATE");
     $u=record('users','user_id',$id,true); $old=record('roles','role_id',(int)$u['role_id']);
     if ($_SESSION['role_name']==='HR' && $old['role_name']==='Admin') fail(403,'Only Admin can manage administrator accounts.');
-    if ($action==='reset-password') { $hash=newPassword($b['password']??null); query('UPDATE users SET password_hash=?,auth_version=auth_version+1 WHERE user_id=?',[$hash,$id]); }
+    if ($action==='reset-password') { $hash=newPassword($b['password']??null); query('UPDATE users SET password_hash=?,must_change_password=?,auth_version=auth_version+1 WHERE user_id=?',[$hash,filter_var($b['must_change_password']??false,FILTER_VALIDATE_BOOLEAN)?'true':'false',$id]); }
     elseif ($action==='update') {
         $role=id($b['role_id']??$u['role_id']); $r=record('roles','role_id',$role); $status=choice($b['account_status']??$u['account_status'],['Active','Inactive','Locked']);
         if ($_SESSION['role_name']==='HR' && $r['role_name']==='Admin') fail(403,'Only Admin can assign Admin.');

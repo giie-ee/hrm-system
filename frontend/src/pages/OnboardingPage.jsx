@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import apiClient from '../api/client'
+import { OnboardingCompletionPanel, OnboardingProgressCard } from '../components/OnboardingStatus'
 
 const emptyOnboardingForm = {
   phone: '', address: '', emergency_contact_name: '', emergency_contact_phone: '',
@@ -174,6 +175,10 @@ function OnboardingPage() {
       {state === 'error' && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">{message}</div>}
       {formMessage.text && <div className={`mb-6 rounded-xl border p-4 text-sm ${formMessage.kind === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`} role={formMessage.kind === 'error' ? 'alert' : 'status'}>{formMessage.text}</div>}
       {state === 'ready' && records.length === 0 && <div className="panel-surface p-7 text-center"><h2 className="font-semibold text-slate-900">No onboarding record yet</h2><p className="mt-2 text-sm text-slate-600">HR can create an onboarding record and request the documents needed for this employee.</p></div>}
+
+      {role === 'Employee' && latest && <OnboardingProgressCard record={latest} restricted={Boolean(user?.onboarding_required)} />}
+
+      {canRequestDocuments && records.length > 0 && <OnboardingCompletionPanel records={records} onChanged={() => setRefreshKey((key) => key + 1)} />}
 
       {ownForm && (
         <section className="panel-surface mb-6 p-5 sm:p-6">

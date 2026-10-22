@@ -48,7 +48,7 @@ function LoginPage() {
         setSuccessMessage(response.data.message || 'Login successful.')
         localStorage.setItem('hrms_user', JSON.stringify(response.data.user))
         sessionStorage.setItem('hrms_csrf_token', response.data.csrf_token || '')
-        setTimeout(() => navigate('/dashboard', { replace: true }), 400)
+        setTimeout(() => navigate(response.data.user?.must_change_password ? '/change-password' : '/dashboard', { replace: true }), 400)
       } else {
         setError(response.data.message || 'Login failed.')
       }

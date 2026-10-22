@@ -7,6 +7,21 @@ function provisionOnboarding(int $employeeId, string $startDate): void {
         query('INSERT INTO onboarding_documents(onboarding_id,document_name,document_type) VALUES (?,?,?)',[$onboarding,$name,$type]);
     }
 }
+function createEmployeeAccount(int $employeeId, string $first, string $last, string $email, ?string $requested): array {
+    $role=one("SELECT role_id FROM roles WHERE role_name='Employee'") ?? fail(500,'The Employee role is missing.');
+    if ($requested!==null) {
+        if (!preg_match('/^[A-Za-z0-9_.-]{3,50}$/D',$requested)) fail(400,'Invalid username.');
+        if (one('SELECT user_id FROM users WHERE username=?',[$requested])) fail(409,'That username is already taken.');
+        $username=$requested;
+    } else {
+        $base=AccountPolicy::baseUsername($first,$last); $username=$base;
+        for ($n=2; one('SELECT user_id FROM users WHERE username=?',[$username]); $n++) { if ($n>99) fail(409,'Could not generate a unique username.'); $username=$base.$n; }
+    }
+    $password=AccountPolicy::generateTemporaryPassword();
+    query('INSERT INTO users(employee_id,role_id,username,email,password_hash,must_change_password) VALUES (?,?,?,?,?,?)',[$employeeId,(int)$role['role_id'],$username,$email,password_hash($password,PASSWORD_DEFAULT),'true']);
+    $userId=inserted(); audit('user.created','users',$userId,['role'=>'Employee','temporary_password'=>true]);
+    return ['user_id'=>$userId,'username'=>$username,'temporary_password'=>$password,'must_change_password'=>true];
+}
 function contactFields(array $b): array {
     $email=textValue($b['email']??null,'email',100);
     if (!filter_var($email,FILTER_VALIDATE_EMAIL)) fail(400,'Invalid email.');
@@ -68,11 +83,19 @@ $type=choice($b['employment_type']??'Full-Time',['Full-Time','Part-Time','Contra
 $dob=$b['date_of_birth']??null;
 if ($dob!==null) { if (!is_string($dob)) fail(400,'Invalid date_of_birth.'); $d=DateTimeImmutable::createFromFormat('!Y-m-d',$dob); if (!$d || $d->format('Y-m-d')!==$dob || $dob>date('Y-m-d') || $dob>=$hire || $dob<'1900-01-01') fail(400,'Invalid date_of_birth.'); }
 $national=isset($b['national_id'])?textValue($b['national_id'],'national_id',50):null;
-$id=transaction(function() use($id,$number,$first,$middle,$last,$gender,$dob,$national,$email,$phone,$address,$department,$position,$type,$hire,$action) {
+$salaryAmount=null; $salaryFrom=$hire; $account=null; $accountName=null; $createAccount=false;
+if ($action==='create') {
+    if (isset($b['basic_salary']) && $b['basic_salary']!=='') { $salaryAmount=money($b['basic_salary'],'basic_salary'); if (isset($b['salary_effective_from']) && $b['salary_effective_from']!=='') $salaryFrom=dateValue($b['salary_effective_from'],'salary_effective_from'); }
+    $createAccount=filter_var($b['create_account']??false,FILTER_VALIDATE_BOOLEAN);
+    if ($createAccount && isset($b['username']) && $b['username']!=='') $accountName=textValue($b['username'],'username',50);
+}
+$id=transaction(function() use($id,$number,$first,$middle,$last,$gender,$dob,$national,$email,$phone,$address,$department,$position,$type,$hire,$action,$salaryAmount,$salaryFrom,$createAccount,$accountName,&$account) {
     $values=[$number,$first,$middle,$last,$gender,$dob,$national,$email,$phone,$address,$department,$position,$type,$hire];
     if ($id) { $values[]=$id; query('UPDATE employees SET employee_number=?,first_name=?,middle_name=?,last_name=?,gender=?,date_of_birth=?,national_id=?,email=?,phone=?,address=?,department_id=?,position_id=?,employment_type=?,hire_date=? WHERE employee_id=?',$values); }
     else { query('INSERT INTO employees(employee_number,first_name,middle_name,last_name,gender,date_of_birth,national_id,email,phone,address,department_id,position_id,employment_type,hire_date) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',$values); $id=inserted();
         query("INSERT INTO leave_balances(employee_id,leave_type_id,year,total_days,used_days,remaining_days) SELECT ?,leave_type_id,?,default_days,0,default_days FROM leave_types WHERE status='Active' ON CONFLICT (employee_id,leave_type_id,year) DO NOTHING",[$id,(int)date('Y')]);
-        provisionOnboarding($id,$hire); }
+        provisionOnboarding($id,$hire);
+        if ($salaryAmount!==null) { query('INSERT INTO employee_salaries(employee_id,basic_salary,effective_from) VALUES (?,?,?)',[$id,$salaryAmount,$salaryFrom]); audit('employee.salary-created','employees',$id,['source'=>'hire']); }
+        if ($createAccount) $account=createEmployeeAccount($id,$first,$last,$email,$accountName); }
     audit('employee.'.$action,'employees',$id,['fields'=>['identity','contact','employment']]); return $id;
-}); reply(['employee_id'=>$id], 'Employee saved.', $action==='create'?201:200);
+}); reply(['employee_id'=>$id]+($account!==null?['account'=>$account]:[]), 'Employee saved.', $action==='create'?201:200);

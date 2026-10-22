@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { isLockedByOnboarding, readStoredUser } from '../api/session'
 import BrandMark from './BrandMark'
 import apiClient from '../api/client'
 
@@ -124,6 +125,15 @@ function WorkspaceLink({ module, className = '' }) {
     </>
   )
 
+  if (module.internal && isLockedByOnboarding(readStoredUser(), module.href)) {
+    return (
+      <div className={`module-card module-card--locked ${className}`.trim()} aria-disabled="true" title="Available after HR completes your onboarding">
+        {content}
+        <span className="availability-pill availability-pill--planned">Unlocks after onboarding</span>
+      </div>
+    )
+  }
+
   const linkClass = `module-card${module.href ? ' module-card--link' : ''} ${className}`.trim()
 
   if (module.internal && module.href) {
@@ -206,7 +216,14 @@ function WorkspaceDashboard({
             <span>Dashboard</span>
           </Link>
           {navigationModules.map((module) => (
-            <Link key={module.title} to={module.href} className="workspace-nav__item">
+            isLockedByOnboarding(readStoredUser(), module.href)
+              ? (
+                <span key={module.title} className="workspace-nav__item workspace-nav__item--locked" aria-disabled="true" title="Available after HR completes your onboarding">
+                  <DashboardIcon name={module.icon} />
+                  <span>{module.title}</span>
+                </span>
+              )
+              : <Link key={module.title} to={module.href} className="workspace-nav__item">
               <DashboardIcon name={module.icon} />
               <span>{module.title}</span>
             </Link>
