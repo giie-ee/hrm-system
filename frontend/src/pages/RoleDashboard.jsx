@@ -7,7 +7,7 @@ import WorkspaceDashboard from '../components/WorkspaceDashboard'
 const sharedModules = {
   directory: {
     title: 'Employee Directory',
-    description: 'Open the connected employee records workspace.',
+    description: 'Open the employee records workspace.',
     href: '/employees',
     internal: true,
     availability: 'Available',
@@ -55,7 +55,7 @@ const sharedModules = {
   },
   documents: {
     title: 'Documents',
-    description: 'Open the connected employee document workspace.',
+    description: 'Open the employee document workspace.',
     href: '/documents',
     internal: true,
     availability: 'Available',
@@ -90,7 +90,7 @@ const sharedModules = {
 const roleDashboardContent = {
   Admin: {
     title: 'Admin Dashboard',
-    summary: 'Manage people records, access checks, payroll, and connected HR workflows from one place.',
+    summary: 'Manage people records, access checks, payroll, and HR workflows from one place.',
     statusLabel: 'Administrator workspace',
     insightsScope: 'organization',
     modules: [
@@ -123,7 +123,7 @@ const roleDashboardContent = {
       sharedModules.reports,
       {
         title: 'HR Management Tools',
-        description: 'Advanced HR-only workflows will appear when their protected API is connected.',
+        description: 'Advanced HR-only workflows will appear when their protected API is available.',
         availability: 'Backend dependency',
         icon: 'shield',
       },
@@ -146,7 +146,7 @@ const roleDashboardContent = {
       sharedModules.directory,
       {
         title: 'Team Overview',
-        description: 'Team reporting will appear when the manager-specific API is connected.',
+        description: 'Team reporting will appear when the manager-specific API is available.',
         availability: 'Backend dependency',
         icon: 'team',
       },

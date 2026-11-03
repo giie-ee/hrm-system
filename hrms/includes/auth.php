@@ -22,7 +22,8 @@ function requireLogin(): void
     if (!isset($conn)) require_once __DIR__ . '/../config/database.php';
 
     $user = one(
-        'SELECT u.user_id,u.employee_id,u.role_id,u.username,u.account_status,u.auth_version,u.must_change_password,r.role_name,e.employment_status '
+        'SELECT u.user_id,u.employee_id,u.role_id,u.username,u.account_status,u.auth_version,u.must_change_password,r.role_name,e.employment_status,'
+        . "(SELECT 1 FROM onboarding o WHERE o.employee_id=u.employee_id AND o.restricts_access AND o.onboarding_status<>'Completed' LIMIT 1) AS onboarding_gate "
         . 'FROM users u JOIN roles r ON r.role_id=u.role_id JOIN employees e ON e.employee_id=u.employee_id WHERE u.user_id=?',
         [(int) $_SESSION['user_id']]
     );
@@ -53,7 +54,7 @@ function requireLogin(): void
     // Two access levels: an Employee who has not finished a restricting onboarding
     // may only reach the endpoints in OnboardingAccess. Re-evaluated on every
     // request so completing onboarding unlocks the account immediately.
-    $_SESSION['onboarding_required'] = $user['role_name'] === 'Employee' && onboardingRequired((int) $user['employee_id']);
+    $_SESSION['onboarding_required'] = $user['role_name'] === 'Employee' && $user['onboarding_gate'] !== null;
     if ($_SESSION['onboarding_required'] && !OnboardingAccess::allows((string) ($_SERVER['SCRIPT_NAME'] ?? ''))) {
         http_response_code(403);
         echo json_encode([

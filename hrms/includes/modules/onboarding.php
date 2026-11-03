@@ -12,12 +12,15 @@ function privateStorage(): string {
     if (!$real || ($web && str_starts_with(strtolower(str_replace('\\','/',$real)).'/',strtolower(str_replace('\\','/',$web)).'/'))) fail(500,'Document storage must be outside the web root.');
     return $real;
 }
-function onboardingRequirements(array $o): array {
-    $n=one("SELECT COUNT(*) total,COALESCE(SUM(CASE WHEN document_status='Verified' THEN 1 ELSE 0 END),0) verified FROM onboarding_documents WHERE onboarding_id=?",[(int)$o['onboarding_id']]);
-    $form=one('SELECT status FROM onboarding_forms WHERE onboarding_id=?',[(int)$o['onboarding_id']]);
-    $restricts=filter_var($o['restricts_access']??false,FILTER_VALIDATE_BOOLEAN); $formStatus=(string)($form['status']??'Pending');
-    $documentsDone=(int)$n['total']>0 && (int)$n['total']===(int)$n['verified'];
-    return ['documents_total'=>(int)$n['total'],'documents_verified'=>(int)$n['verified'],'form_required'=>$restricts,'form_status'=>$formStatus,
+// Pass $documents / $formStatus when they are already loaded (list views) to avoid extra queries;
+// each database round trip is slow on the hosted setup, so list endpoints must not query per row.
+function onboardingRequirements(array $o, ?array $documents=null, ?string $formStatus=null): array {
+    if ($documents===null) { $documents=rows('SELECT document_status FROM onboarding_documents WHERE onboarding_id=?',[(int)$o['onboarding_id']]); }
+    if ($formStatus===null) { $form=one('SELECT status FROM onboarding_forms WHERE onboarding_id=?',[(int)$o['onboarding_id']]); $formStatus=(string)($form['status']??'Pending'); }
+    $total=count($documents); $verified=count(array_filter($documents,fn($d)=>$d['document_status']==='Verified'));
+    $restricts=filter_var($o['restricts_access']??false,FILTER_VALIDATE_BOOLEAN);
+    $documentsDone=$total>0 && $total===$verified;
+    return ['documents_total'=>$total,'documents_verified'=>$verified,'form_required'=>$restricts,'form_status'=>$formStatus,
         'ready_to_complete'=>$documentsDone && (!$restricts || $formStatus==='Approved')];
 }
 function onboardingNotifyIfReady(int $onboardingId): void {
@@ -28,10 +31,17 @@ if ($action==='get') {
     $params=[]; $where=isAdminOrHR()?'1=1':'employee_id=?'; if (!isAdminOrHR()) $params[]=ownEmployee();
     if (isset($b['employee_id'])) { $employee=id($b['employee_id']); if (!isAdminOrHR() && $employee!==ownEmployee()) fail(403,'Access denied.'); $where.=' AND employee_id=?'; $params[]=$employee; }
     $onboardings=rows("SELECT * FROM onboarding WHERE $where ORDER BY onboarding_id DESC".pageLimit(),$params);
+    $ids=array_map(fn($o)=>(int)$o['onboarding_id'],$onboardings); $documentsBy=[]; $formStatusBy=[];
+    if ($ids) {
+        $marks=implode(',',array_fill(0,count($ids),'?'));
+        foreach (rows("SELECT onboarding_id,document_id,document_name,document_type,document_status,rejection_reason,verified_by,verified_at FROM onboarding_documents WHERE onboarding_id IN ($marks) ORDER BY document_id",$ids) as $d) $documentsBy[(int)$d['onboarding_id']][]=$d;
+        foreach (rows("SELECT onboarding_id,status FROM onboarding_forms WHERE onboarding_id IN ($marks)",$ids) as $f) $formStatusBy[(int)$f['onboarding_id']]=(string)$f['status'];
+    }
     foreach ($onboardings as &$o) {
-        $o['documents']=rows('SELECT document_id,document_name,document_type,document_status,rejection_reason,verified_by,verified_at FROM onboarding_documents WHERE onboarding_id=?',[(int)$o['onboarding_id']]);
+        $oid=(int)$o['onboarding_id'];
+        $o['documents']=array_map(function($d){ unset($d['onboarding_id']); return $d; },$documentsBy[$oid]??[]);
         $verified=count(array_filter($o['documents'],fn($d)=>$d['document_status']==='Verified')); $o['verification_percentage']=count($o['documents'])?round(100*$verified/count($o['documents']),2):0;
-        $o['requirements']=onboardingRequirements($o);
+        $o['requirements']=onboardingRequirements($o,$o['documents'],$formStatusBy[$oid]??'Pending');
     } unset($o); reply($onboardings);
 }
 if ($action==='create' || $action==='update') {

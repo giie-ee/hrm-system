@@ -11,8 +11,14 @@ function progressMilestoneTitles(mixed $value): array {
     return $titles;
 }
 function progressWithMilestones(array $records): array {
+    // One query for every record (round trips are slow on the hosted setup).
+    $ids=array_map(fn($r)=>(int)$r['record_id'],$records); $by=[];
+    if ($ids) {
+        $marks=implode(',',array_fill(0,count($ids),'?'));
+        foreach (rows("SELECT record_id,milestone_id,title,sort_order,is_complete,completed_at,completed_by FROM progress_milestones WHERE record_id IN ($marks) ORDER BY sort_order,milestone_id",$ids) as $m) { $rid=(int)$m['record_id']; unset($m['record_id']); $by[$rid][]=$m; }
+    }
     foreach ($records as &$r) {
-        $r['milestones']=rows('SELECT milestone_id,title,sort_order,is_complete,completed_at,completed_by FROM progress_milestones WHERE record_id=? ORDER BY sort_order,milestone_id',[(int)$r['record_id']]);
+        $r['milestones']=$by[(int)$r['record_id']]??[];
         $done=count(array_filter($r['milestones'],fn($m)=>filter_var($m['is_complete'],FILTER_VALIDATE_BOOLEAN)));
         $r['milestones_total']=count($r['milestones']); $r['milestones_completed']=$done;
         $r['progress_percentage']=$r['milestones_total']?round(100*$done/$r['milestones_total'],2):0;

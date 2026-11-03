@@ -38,3 +38,14 @@ when deployed. Anything starting with `<!doctype html>` means the old build is s
 
 If a push to `main` does not deploy, try merging through a GitHub pull request instead and note how long Render takes
 to react; record the result here so the team knows which route works.
+
+## Performance and routing notes (found during live testing, 2026-11-03)
+- **Each database query is slow on the hosted setup** (about half a second; even a trivial API call takes ~2 s).
+  List endpoints must therefore use a fixed number of queries, never one per row. `onboarding/get.php` and
+  `progress/get.php` were taking 10-19 s because of per-record queries (the page's request timeout is 10 s, so the page
+  hung on "Loading"); they now batch. If pages still feel slow, confirm the Render service and the Neon database are in
+  the **same region** - a cross-region database multiplies every query.
+- **`/employees` could not be opened or refreshed directly.** `hrms/employees/` is a real backend folder, so Apache
+  redirected `/employees` to a trailing-slash URL on the internal port (`:10000`), which is unreachable. `docker/apache.conf`
+  now serves the web app for `/employees` at virtual-host level. Clicking through from the dashboard always worked, which is
+  why it was easy to miss; test pages by typing the address as well as by clicking.
