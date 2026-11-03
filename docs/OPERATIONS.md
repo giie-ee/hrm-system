@@ -29,3 +29,12 @@ so the data is correct when anyone looks at it. To also have it run on a timer, 
 ## Rollback
 Backup tags on GitHub mark the code before each change: `backup/pre-seed-004`, `backup/pre-005`, `backup/pre-009`, `backup/pre-010`.
 `git revert <commit>` is the safe way to undo a push. Matching manual database rollbacks are in `docs/rollback/` (they are not run automatically).
+
+## Is the latest version live?
+Render keeps serving the old build until a deploy finishes, so check before testing. An endpoint that only exists in
+the new build answers with JSON once deployed, and with the web app's HTML page before that:
+`POST /api/auth/change-password.php` (added in commit d1e84a1) returns `{"success":false,"message":"Authentication required."}`
+when deployed. Anything starting with `<!doctype html>` means the old build is still running.
+
+If a push to `main` does not deploy, try merging through a GitHub pull request instead and note how long Render takes
+to react; record the result here so the team knows which route works.
